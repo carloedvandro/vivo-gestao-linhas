@@ -3,7 +3,12 @@
 
 services:
   web:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_SUPABASE_URL: https://consumo-ytech.yrwentechnology.com.br/api
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${ANON_KEY}
+        VITE_VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
     container_name: vivo-web
     restart: unless-stopped
     environment:
