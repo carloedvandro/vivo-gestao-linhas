@@ -75,7 +75,8 @@ create table if not exists public.lines (
   number        text not null unique,        -- ex: (31) 97115-7584
   user_id       uuid references public.profiles(id) on delete set null,
   plan          text not null default '',    -- ex: SmartVoz 50GB
-  total_gb      numeric(10,2) not null default 0,  -- franquia contratada
+  total_gb      numeric(10,2) not null default 130, -- franquia contratada
+  bonus_gb      numeric(10,2) not null default 0,   -- GB extras liberados pelo admin
   used_gb       numeric(10,2) not null default 0,  -- consumo atual (último scrape)
   status        public.line_status not null default 'ativa',
   cycle_closing_day  int not null default 1,   -- dia de fechamento do ciclo

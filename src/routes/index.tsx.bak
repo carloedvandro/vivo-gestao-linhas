@@ -6,6 +6,7 @@ import {
   Grid3x3,
   FileText,
   ChevronRight,
+  Plus,
   X,
   Check,
   Phone,
@@ -658,10 +659,9 @@ function ResumoConsumo() {
 
   const safeLineIdx = lines ? Math.min(lineIdx, lines.length - 1) : 0;
   const baseLine = lines![safeLineIdx];
-  // bonus_gb vem do banco (admin libera GB extras manualmente)
-  const bonusDebito = baseLine.bonusGb ?? 0;
+  const bonusDebito = autoDebit ? 25 : 0;
   // Se total_gb for 0 (scraper ainda nao preencheu), usa um default para evitar divisao por zero
-  const safeTotal = baseLine.total > 0 ? baseLine.total : 130;
+  const safeTotal = baseLine.total > 0 ? baseLine.total : 50;
   const franquiaTotal = safeTotal + bonusDebito;
 
   // Real-time consumption simulation:
@@ -875,6 +875,8 @@ function ResumoConsumo() {
                   Próxima renovação:{" "}
                   <span className="font-semibold text-[#1a1a1a]">{renewalDateLabel}</span>
                 </p>
+
+                <ul className="mt-5 -ml-2 space-y-2.5 text-sm">
 
                 <ul className="mt-5 -ml-2 space-y-2.5 text-sm">
                   <li>
@@ -1491,6 +1493,149 @@ function ResumoConsumo() {
         </div>
       </Modal>
 
+      {/* Expanded view modal */}
+      <Modal
+        open={expandOpen}
+        onClose={() => setExpandOpen(false)}
+        title="Consumo detalhado"
+      >
+            onClick={(e) => e.stopPropagation()}
+            className="relative flex h-full max-h-none w-full max-w-none flex-col overflow-hidden rounded-none animate-scale-in sm:h-auto sm:max-h-[88vh] sm:max-w-[480px] sm:rounded-2xl"
+            style={{
+              background: "rgba(255,255,255,0.92)",
+              backdropFilter: "blur(14px)",
+              boxShadow:
+                "0 20px 60px -10px rgba(102,0,153,0.25), 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.6)",
+              border: "1px solid rgba(255,255,255,0.5)",
+            }}
+          >
+
+            {/* Header */}
+            <div className="flex shrink-0 items-center justify-between border-b border-[#660099]/10 px-6 py-4">
+              <div className="flex items-center gap-2.5">
+                <img
+                  src={upgradeArrowIcon}
+                  alt="Upgrade"
+                  className="h-9 w-9 shrink-0 object-contain drop-shadow-sm"
+                />
+                <h3 className="text-lg font-semibold text-[#660099]">Upgrade de plano</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setUpgradeOpen(false);
+                  setSelectedPlan(null);
+                }}
+                aria-label="Fechar"
+                className="rounded-full p-1.5 text-[#666] transition hover:bg-[#660099]/10 hover:text-[#660099]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="no-scrollbar flex-1 overflow-y-auto px-3 py-5 sm:px-6">
+              <p className="mb-4 text-sm text-[#5a5a5a]">
+                Escolha o melhor plano para você. A mudança entra em vigor no próximo ciclo.
+              </p>
+              <div className="space-y-3">
+                {plans.map((p, idx) => {
+                  const sel = selectedPlan === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelectedPlan(p.id)}
+                      className={`group relative flex w-full items-center justify-between gap-4 rounded-xl border p-4 text-left transition-all duration-300 animate-fade-in ${
+                        sel
+                          ? "border-[#660099] bg-white"
+                          : "border-[#e8e8ee] bg-white hover:-translate-y-0.5 hover:border-[#cda8e0]"
+                      }`}
+                      style={{
+                        animationDelay: `${idx * 60}ms`,
+                        boxShadow: sel
+                          ? "0 8px 24px -8px rgba(102,0,153,0.25), inset 0 1px 0 rgba(255,255,255,0.8)"
+                          : "0 1px 2px rgba(0,0,0,0.03)",
+                      }}
+                    >
+                      <div className="min-w-0">
+                        <div className="text-[15px] font-semibold text-[#1a1a1a]">{p.nome}</div>
+                        <div className="mt-0.5 text-[11px] text-[#888]">{p.bonus}</div>
+                        <div className="mt-2 text-sm font-semibold text-[#660099]">
+                          {p.preco}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <div className="text-[10px] uppercase tracking-wide text-[#999]">Internet</div>
+                          <div className="text-base font-bold text-[#1a1a1a]">{p.giga}</div>
+                        </div>
+                        <div
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
+                            sel
+                              ? "bg-gradient-to-br from-[#660099] to-[#7a00b3] shadow-[0_0_0_4px_rgba(102,0,153,0.15)]"
+                              : "border-2 border-[#d4d4d8] bg-white"
+                          }`}
+                        >
+                          {sel && <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-5 rounded-xl border border-[#e8e8ee] bg-white p-4">
+                <div className="mb-1 text-sm font-semibold text-[#1a1a1a]">Receber confirmação por</div>
+                <p className="mb-3 text-xs text-[#888]">A confirmação do upgrade será enviada para o seu e-mail.</p>
+                <div className="flex items-center justify-between rounded-lg border border-[#ececf2] bg-white px-3 py-2.5 text-sm">
+                  <span className="flex items-center gap-2 text-[#333]">
+                    <Mail className="h-4 w-4 text-[#660099]" />
+                    <span className="font-medium">E-mail</span>
+                    <span className="text-xs text-[#888]">(joeliaalmeidas@gmail.com)</span>
+                  </span>
+                  <span className="flex items-center gap-1 text-xs font-semibold text-[#16a34a]">
+                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                    Padrão
+                  </span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="shrink-0 border-t border-[#660099]/10 bg-white/60 px-3 py-4 sm:px-6">
+              <button
+                disabled={!selectedPlan || (!notifyEmail && !notifyWhats && !notifySms)}
+                onClick={() => {
+                  const p = plans.find((x) => x.id === selectedPlan);
+                  const canais = [
+                    notifyEmail && "e-mail",
+                    notifyWhats && "WhatsApp",
+                    notifySms && "SMS",
+                  ].filter(Boolean).join(", ");
+                  console.log("Upgrade notification channels:", { email: notifyEmail, whatsapp: notifyWhats, sms: notifySms, plan: p?.nome });
+                  setUpgradeOpen(false);
+                  setSelectedPlan(null);
+                  showToast(`Upgrade solicitado: ${p?.nome}. Confirmação enviada via ${canais}.`);
+                }}
+                className="group relative w-full overflow-hidden rounded-xl py-3 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                style={{
+                  background: "linear-gradient(135deg, #660099 0%, #7a00b3 100%)",
+                  boxShadow:
+                    "0 8px 20px -6px rgba(102,0,153,0.50), 0 2px 6px rgba(102,0,153,0.30), inset 0 1px 0 rgba(255,255,255,0.25)",
+                }}
+              >
+                <span className="relative z-10">Confirmar upgrade</span>
+                <span
+                  className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0))",
+                  }}
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
       {/* Expanded view modal */}
@@ -1699,29 +1844,34 @@ function ResumoConsumo() {
 
       {/* Status da linha modal */}
       {(() => {
-        const currentStatus: LineStatus = baseLine.status;
+        const currentStatus: LineStatus =
+          simStatus ?? baseLine.status;
         const cfg = ({
           aguardando: {
             label: "Aguardando",
+            image: statusAguardandoIcon,
             tone: "#6B7280",
             fatura: "—",
             message: "Aguardando ativação da linha.",
           },
           ativa: {
             label: "Ativa",
+            image: statusAtivaIcon,
             tone: "#16A34A",
             fatura: "Em dia",
             message: "Você pode usar sua linha normalmente.",
           },
           reduzida: {
             label: "Velocidade reduzida",
+            image: statusReduzidaIcon,
             tone: "#F97316",
             fatura: "Em dia",
             message:
-              "Sua franquia foi totalmente consumida, e a navegação seguirá em velocidade reduzida até a próxima renovação do ciclo.",
+              "Sua franquia foi totalmente consumida, e a navegação seguirá em velocidade reduzida até a próxima renovação do ciclo. Para voltar à velocidade máxima, você pode contratar um plano superior. Nesse caso, seu consumo atual é preservado, os novos GB são liberados imediatamente e você paga apenas a diferença proporcional aos dias restantes do ciclo. Na próxima renovação, o novo plano já será ativado com a franquia completa.",
           },
           bloqueada_fatura: {
             label: "Bloqueada por fatura",
+            image: statusBloqueadaIcon,
             tone: "#DC2626",
             fatura: "Em aberto",
             message:
@@ -1729,6 +1879,7 @@ function ResumoConsumo() {
           },
           bloqueada_pagamento: {
             label: "Bloqueada por pagamento",
+            image: statusBloqueadaIcon,
             tone: "#DC2626",
             fatura: "Pendente",
             message:
@@ -1744,9 +1895,13 @@ function ResumoConsumo() {
             <div className="space-y-5">
               {/* Situação */}
               <div className="flex items-center gap-3">
-                <div
-                  className="h-3 w-3 shrink-0 rounded-full"
-                  style={{ background: cfg.tone }}
+                <img
+                  src={cfg.image}
+                  alt={cfg.label}
+                  width={56}
+                  height={56}
+                  loading="lazy"
+                  className="h-14 w-14 shrink-0 object-contain drop-shadow-sm"
                 />
                 <div className="min-w-0">
                   <div
@@ -1797,6 +1952,77 @@ function ResumoConsumo() {
 
               {/* Mensagem */}
               <p className="px-4 text-sm text-[#444]">{cfg.message}</p>
+
+              {/* Ações */}
+              <div className="space-y-2">
+                {currentStatus === "ativa" && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setStatusOpen(false);
+                        setToast("Abrindo suas faturas...");
+                        setTimeout(() => setToast(null), 2200);
+                      }}
+                      className="flex-1 rounded-xl border border-[#660099] px-3 py-3 text-sm font-semibold text-[#660099] transition hover:bg-[#f5ebfa]"
+                    >
+                      Ver faturas
+                    </button>
+                    <button
+                      onClick={() => {
+                        setStatusOpen(false);
+                        openAfterIconsReady(() => setUpgradeOpen(true));
+                      }}
+                      className="flex-1 rounded-xl px-3 py-3 text-sm font-semibold text-white transition hover:brightness-110"
+                      style={{ background: "linear-gradient(135deg,#660099,#7a00b3)" }}
+                    >
+                      Fazer upgrade
+                    </button>
+                  </div>
+                )}
+
+                {currentStatus === "reduzida" && (
+                  <button
+                    onClick={() => {
+                      setStatusOpen(false);
+                      openAfterIconsReady(() => setUpgradeOpen(true));
+                    }}
+                    className="w-full rounded-xl px-3 py-3 text-sm font-semibold text-white transition hover:brightness-110"
+                    style={{
+                      background: "linear-gradient(135deg,#660099,#7a00b3)",
+                    }}
+                  >
+                    Fazer upgrade
+                  </button>
+                )}
+
+                {(currentStatus === "bloqueada_fatura" ||
+                  currentStatus === "bloqueada_pagamento") && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setStatusOpen(false);
+                        setPixOpen(true);
+                      }}
+                      className="flex-1 rounded-xl px-3 py-3 text-sm font-semibold text-white transition hover:brightness-110"
+                      style={{ background: "linear-gradient(135deg,#DC2626,#b91c1c)" }}
+                    >
+                      Pagar fatura
+                    </button>
+                    <button
+                      onClick={() => {
+                        setStatusOpen(false);
+                        openAfterIconsReady(() => setUpgradeOpen(true));
+                      }}
+                      className="flex-1 rounded-xl border border-[#660099] px-3 py-3 text-sm font-semibold text-[#660099] transition hover:bg-[#f5ebfa]"
+                    >
+                      Fazer upgrade
+                    </button>
+                  </div>
+                )}
+
+
+              </div>
+
             </div>
           </Modal>
         );

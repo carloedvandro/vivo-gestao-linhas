@@ -19,6 +19,7 @@ export type ClientLine = {
   number: string;
   used: number; // GB
   total: number; // GB
+  bonusGb: number; // GB extras liberados pelo admin
   plan: string;
   cycleDays: number;
   status: LineStatus;
@@ -244,8 +245,96 @@ export const adminUpdateLineStatus = createServerFn({ method: "POST" })
   });
 
 // ---------------------------------------------------------------------------
-// Push subscription (cliente registra o dispositivo para receber notificações)
+// Admin: definir franquia total (total_gb) de uma linha
 // ---------------------------------------------------------------------------
+export const adminUpdateLineTotal = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      lineId: z.string().uuid(),
+      totalGb: z.number().min(0).max(10000),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", userId)
+      .single();
+    if (!profile?.is_admin) throw new Error("Forbidden: admin only");
+
+    const { error } = await supabase
+      .from("lines")
+      .update({ total_gb: data.totalGb })
+      .eq("id", data.lineId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ---------------------------------------------------------------------------
+// Admin: adicionar GB extras (bonus_gb) a uma linha
+// ---------------------------------------------------------------------------
+export const adminAddBonusGb = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      lineId: z.string().uuid(),
+      addGb: z.number().min(0).max(10000),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", userId)
+      .single();
+    if (!profile?.is_admin) throw new Error("Forbidden: admin only");
+
+    // Soma ao bonus_gb existente
+    const { data: line } = await supabase
+      .from("lines")
+      .select("bonus_gb")
+      .eq("id", data.lineId)
+      .single();
+    const current = Number(line?.bonus_gb ?? 0);
+    const newBonus = current + data.addGb;
+
+    const { error } = await supabase
+      .from("lines")
+      .update({ bonus_gb: newBonus })
+      .eq("id", data.lineId);
+    if (error) throw new Error(error.message);
+    return { ok: true, bonusGb: newBonus };
+  });
+
+// ---------------------------------------------------------------------------
+// Admin: remover GB extras (zera bonus_gb)
+// ---------------------------------------------------------------------------
+export const adminResetBonusGb = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      lineId: z.string().uuid(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", userId)
+      .single();
+    if (!profile?.is_admin) throw new Error("Forbidden: admin only");
+
+    const { error } = await supabase
+      .from("lines")
+      .update({ bonus_gb: 0 })
+      .eq("id", data.lineId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
 export const savePushSubscription = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
@@ -283,6 +372,7 @@ function mapLine(l: LineRow, t: ThresholdRow | null): ClientLine {
     number: l.number,
     used: Number(l.used_gb),
     total: Number(l.total_gb),
+    bonusGb: Number(l.bonus_gb ?? 0),
     plan: l.plan,
     cycleDays: daysUntilCycleEnd(l.cycle_closing_day),
     status: l.status,

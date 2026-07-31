@@ -47,6 +47,7 @@ export type Database = {
           user_id: string | null
           plan: string
           total_gb: number
+          bonus_gb: number
           used_gb: number
           status: LineStatus
           cycle_closing_day: number
@@ -63,6 +64,7 @@ export type Database = {
           user_id?: string | null
           plan?: string
           total_gb?: number
+          bonus_gb?: number
           used_gb?: number
           status?: LineStatus
           cycle_closing_day?: number
@@ -77,6 +79,7 @@ export type Database = {
           user_id?: string | null
           plan?: string
           total_gb?: number
+          bonus_gb?: number
           used_gb?: number
           status?: LineStatus
           cycle_closing_day?: number
