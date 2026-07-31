@@ -121,10 +121,11 @@ class VivoPortalScraper:
 
         log.info("Login realizado com sucesso")
 
-    # ---- navegacao ate a lista de linhas ----
-    async def _navigate_to_lines(self, page: Page) -> None:
+    # ---- navegacao e extracao de linhas ----
+    async def _scrape_all_groups(self, page: Page) -> list[LineConsumption]:
         """
-        Navega: Consumo → Consumo de Dados → expandir grupo Net → Ver Linhas.
+        Navega: Consumo → Consumo de Dados → expande cada grupo → Ver Linhas → extrai.
+        Itera sobre TODOS os grupos (Net, Carlo Edvandro, Jacqueline, etc).
         """
         # Fecha modal se existir
         await page.keyboard.press("Escape")
@@ -140,42 +141,78 @@ class VivoPortalScraper:
                 break
         else:
             log.warning("Aba Consumo de Dados nao encontrada")
+            return []
 
         # Fecha modal novamente se apareceu
         await page.keyboard.press("Escape")
         await page.wait_for_timeout(2000)
 
-        # Clica no grupo "Net" (botão + para expandir)
-        log.info("Expandindo grupo Net")
-        net_el = await page.query_selector("text=Net")
-        if net_el:
-            await net_el.click(force=True)
+        # Captura todos os nomes de grupos
+        group_names = await page.evaluate("""() => {
+            const groups = [];
+            const divs = document.querySelectorAll("div.col-18.padding-lr-10");
+            for (const d of divs) {
+                const text = d.textContent.trim();
+                if (text && text.length > 2 && !groups.includes(text)) {
+                    groups.push(text);
+                }
+            }
+            return groups;
+        }""")
+        log.info("Grupos encontrados: %s", group_names)
+
+        all_results: list[LineConsumption] = []
+
+        for group_name in group_names:
+            log.info("Processando grupo: %s", group_name)
+            # Clica no grupo para expandir
+            group_el = await page.query_selector(f"text={group_name}")
+            if not group_el:
+                log.warning("Grupo %s nao encontrado", group_name)
+                continue
+            await group_el.click(force=True)
             await page.wait_for_timeout(5000)
-            log.info("Grupo Net expandido")
-        else:
-            log.warning("Grupo Net nao encontrado")
-            return
+            log.info("Grupo %s expandido", group_name)
 
-        # Aguarda o botao "Ver Linhas" aparecer (pode demorar a renderizar)
-        log.info("Aguardando botao Ver Linhas")
-        try:
-            ver_btn = await page.wait_for_selector("text=Ver Linhas", timeout=15000)
-            if ver_btn:
-                await ver_btn.click(force=True)
-                await page.wait_for_timeout(5000)
-                log.info("Lista de linhas aberta")
-        except Exception as e:
-            log.warning("Botao Ver Linhas nao encontrado: %s", e)
+            # Aguarda o botao "Ver Linhas" aparecer
+            try:
+                ver_btn = await page.wait_for_selector("text=Ver Linhas", timeout=15000)
+                if ver_btn:
+                    await ver_btn.click(force=True)
+                    await page.wait_for_timeout(5000)
+                    log.info("Lista de linhas aberta para %s", group_name)
+            except Exception as e:
+                log.warning("Botao Ver Linhas nao encontrado para %s: %s", group_name, e)
+                continue
 
-        # Clica em "Ver mais linhas" repetidamente até carregar todas
-        for attempt in range(10):
-            more_btn = await page.query_selector("text=Ver mais linhas")
-            if not more_btn or not await more_btn.is_visible():
-                log.info("Todas as linhas carregadas (tentativa %d)", attempt + 1)
-                break
-            log.info("Clicando Ver mais linhas (tentativa %d)", attempt + 1)
-            await more_btn.click(force=True)
-            await page.wait_for_timeout(3000)
+            # Clica em "Ver mais linhas" repetidamente até carregar todas
+            for attempt in range(10):
+                more_btn = await page.query_selector("text=Ver mais linhas")
+                if not more_btn or not await more_btn.is_visible():
+                    break
+                log.info("Clicando Ver mais linhas (tentativa %d) para %s", attempt + 1, group_name)
+                await more_btn.click(force=True)
+                await page.wait_for_timeout(3000)
+
+            # Extrai as linhas deste grupo
+            group_lines = await self._extract_lines(page)
+            log.info("Grupo %s: %d linhas extraidas", group_name, len(group_lines))
+            all_results.extend(group_lines)
+
+            # Fecha a lista de linhas (clicar no grupo novamente ou Escape)
+            await page.keyboard.press("Escape")
+            await page.wait_for_timeout(2000)
+
+        # Deduplica por número (uma linha pode aparecer em mais de um grupo)
+        seen = set()
+        unique: list[LineConsumption] = []
+        for l in all_results:
+            if l.number not in seen:
+                seen.add(l.number)
+                unique.append(l)
+
+        log.info("Total unico: %d linhas de %d grupos", len(unique), len(group_names))
+        return unique
 
     # ---- extracao de dados ----
     async def _extract_lines(self, page: Page) -> list[LineConsumption]:
@@ -235,8 +272,7 @@ class VivoPortalScraper:
         page = await self._context.new_page()
         try:
             await self._login(page)
-            await self._navigate_to_lines(page)
-            all_lines = await self._extract_lines(page)
+            all_lines = await self._scrape_all_groups(page)
 
             log.info("Total de linhas extraidas do portal: %d", len(all_lines))
 
