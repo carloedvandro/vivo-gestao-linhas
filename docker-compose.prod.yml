@@ -12,9 +12,8 @@ services:
     container_name: vivo-web
     restart: unless-stopped
     environment:
-      # SSR fala com o Supabase pela rede interna do Docker.
-      # Como o app está numa rede separada do Supabase, uso o host IP.
-      SUPABASE_URL: http://host.docker.internal:9000
+      # SSR fala com o Supabase pela rede interna do Docker (rede do supabase).
+      SUPABASE_URL: http://vivo-supabase-kong:8000
       SUPABASE_PUBLISHABLE_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       # URL pública que o navegador do cliente usa (via nginx → 9000).
@@ -26,15 +25,16 @@ services:
       PORT: 3008
     ports:
       - "127.0.0.1:3008:3008"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - vivo-supabase
 
   scraper:
     build: ./scraper
     container_name: vivo-scraper
     restart: unless-stopped
     environment:
-      SUPABASE_URL: http://host.docker.internal:9000
+      SUPABASE_URL: http://vivo-supabase-kong:8000
       SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       VIVO_PORTAL_USER: ${VIVO_PORTAL_USER:-}
       VIVO_PORTAL_PASS: ${VIVO_PORTAL_PASS:-}
@@ -45,8 +45,14 @@ services:
       SCRAPER_INTERVAL_SEC: ${SCRAPER_INTERVAL_SEC:-300}
     volumes:
       - scraper-storage:/data
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - vivo-supabase
+
+networks:
+  vivo-supabase:
+    name: vivo-supabase_default
+    external: true
 
 volumes:
   scraper-storage:
