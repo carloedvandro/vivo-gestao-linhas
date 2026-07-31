@@ -1,14 +1,13 @@
 {
-  "name": "Vivo Gestão de Linhas",
-  "short_name": "Vivo Consumo",
-  "description": "Acompanhe seu consumo de dados Vivo em tempo real.",
+  "name": "Ytech | Gestão de Linhas Vivo",
+  "short_name": "Ytech Vivo",
+  "description": "Acompanhe em tempo real o consumo de dados das suas linhas móveis Vivo.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#660099",
   "theme_color": "#660099",
   "orientation": "portrait",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "/favicon.png", "sizes": "498x498", "type": "image/png", "purpose": "any maskable" }
   ]
 }
