@@ -567,7 +567,7 @@ function ResumoConsumo() {
     // PWA: registra service worker + push notifications
     registerServiceWorkerAndPush();
     // Atualiza a cada 60s (o scraper roda a cada 5 min; o cliente vê "atualizado há X")
-    const interval = window.setInterval(loadLines, 60_000);
+    const interval = window.setInterval(() => loadLines(), 60_000);
     return () => {
       mounted = false;
       window.clearInterval(interval);
@@ -634,7 +634,7 @@ function ResumoConsumo() {
           <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-red-500" />
           <p className="text-sm text-[#555]">{loadError}</p>
           <button
-            onClick={loadLines}
+            onClick={() => loadLines()}
             className="mt-4 rounded-md bg-[#660099] px-4 py-2 text-sm font-medium text-white hover:bg-[#7a00b8]"
           >
             Tentar novamente
@@ -813,7 +813,7 @@ function ResumoConsumo() {
 
           <div className="ml-auto flex items-center gap-1">
             <button
-              onClick={loadLines}
+              onClick={() => loadLines()}
               className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-[#555] hover:bg-[#f3f3f3]"
               title={`Atualizado ${lastRefresh.toLocaleTimeString("pt-BR")}`}
             >
