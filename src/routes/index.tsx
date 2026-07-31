@@ -148,7 +148,7 @@ function ConsumoRing({
 }: {
   line: Line;
 }) {
-  const pct = Math.min(100, (line.used / line.total) * 100);
+  const pct = line.total > 0 ? Math.min(100, (line.used / line.total) * 100) : 0;
 
   // Gauge geometry — semicircular speedometer, 240° sweep
   const size = 260;
@@ -639,7 +639,9 @@ function ResumoConsumo() {
   const safeLineIdx = lines ? Math.min(lineIdx, lines.length - 1) : 0;
   const baseLine = lines![safeLineIdx];
   const bonusDebito = autoDebit ? 25 : 0;
-  const franquiaTotal = baseLine.total + bonusDebito;
+  // Se total_gb for 0 (scraper ainda nao preencheu), usa um default para evitar divisao por zero
+  const safeTotal = baseLine.total > 0 ? baseLine.total : 50;
+  const franquiaTotal = safeTotal + bonusDebito;
 
   // Real-time consumption simulation:
   // increments live usage every few seconds so the ring updates in tempo real.
@@ -679,8 +681,8 @@ function ResumoConsumo() {
   const usedInFranquia = Math.min(liveUsed, franquiaTotal);
 
   const line: Line = { ...baseLine, used: usedInFranquia, total: franquiaTotal };
-  const pct = Math.min(100, (line.used / line.total) * 100);
-  const available = +(line.total - line.used).toFixed(2);
+  const pct = franquiaTotal > 0 ? Math.min(100, (line.used / line.total) * 100) : 0;
+  const available = franquiaTotal > 0 ? +(line.total - line.used).toFixed(2) : 0;
   const availPct = Math.round(100 - pct);
   const usedPct = Math.round(pct);
   const usedPctExact = (Math.round(pct * 100) / 100).toFixed(2);
