@@ -521,6 +521,8 @@ function ResumoConsumo() {
   const [profileName, setProfileName] = useState<string>("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [now, setNow] = useState(() => new Date());
+  const [lastUpdated, setLastUpdated] = useState(() => new Date());
 
   async function loadLines() {
     try {
@@ -689,7 +691,6 @@ function ResumoConsumo() {
   const availPctExact = (Math.round((100 - pct) * 100) / 100).toFixed(2);
   const color = ringColor(pct);
 
-  const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const scheduleMidnight = () => {
       const n = new Date();
@@ -710,7 +711,6 @@ function ResumoConsumo() {
     };
   }, []);
 
-  const [lastUpdated, setLastUpdated] = useState(() => new Date());
   useEffect(() => {
     const refresh = () => setLastUpdated(new Date());
     const interval = window.setInterval(refresh, 60_000);
