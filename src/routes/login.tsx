@@ -30,10 +30,12 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email || !password) return;
+    setFeedback(null);
     setLoading(true);
     try {
       if (mode === "signin") {
@@ -48,10 +50,15 @@ function LoginPage() {
           options: { data: { name: email.split("@")[0] } },
         });
         if (error) throw error;
-        toast.success("Conta criada! Verifique seu email para confirmar.");
+        const message = "Conta criada com sucesso! Você já pode entrar com seu email e senha.";
+        setFeedback({ type: "success", text: message });
+        toast.success(message);
+        setMode("signin");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao autenticar");
+      const message = err instanceof Error ? err.message : "Erro ao autenticar";
+      setFeedback({ type: "error", text: message });
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -70,6 +77,18 @@ function LoginPage() {
           </p>
         </CardHeader>
         <CardContent>
+          {feedback && (
+            <div
+              role="alert"
+              className={`mb-4 rounded-md border px-3 py-2 text-sm ${
+                feedback.type === "success"
+                  ? "border-green-200 bg-green-50 text-green-800"
+                  : "border-red-200 bg-red-50 text-red-800"
+              }`}
+            >
+              {feedback.text}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
