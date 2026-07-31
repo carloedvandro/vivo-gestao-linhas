@@ -187,8 +187,8 @@ function LoginPage() {
                   </p>
                   <p className="mt-1.5 text-[#888]">
                     Você pode digitar com ou sem formatação:<br />
-                    <span className="font-mono text-[#660099]">(11) 91853-0425</span> ou{" "}
-                    <span className="font-mono text-[#660099]">11918530425</span>
+                    <span className="font-mono text-[#660099]">(99) 98765-4321</span> ou{" "}
+                    <span className="font-mono text-[#660099]">99987654321</span>
                   </p>
                 </div>
               </div>
@@ -215,7 +215,7 @@ function LoginPage() {
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="(11) 91853-0425"
+                    placeholder="(99) 98765-4321"
                     required
                     autoComplete="tel"
                     className="pl-10"
@@ -223,7 +223,7 @@ function LoginPage() {
                 </div>
                 {mode === "signup" && (
                   <p className="text-[11px] text-[#999]">
-                    Exemplos válidos: (11) 91853-0425 ou 11918530425
+                    Exemplos válidos: (99) 98765-4321 ou 99987654321
                   </p>
                 )}
               </div>

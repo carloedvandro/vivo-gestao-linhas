@@ -38,7 +38,7 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       VIVO_PORTAL_USER: ${VIVO_PORTAL_USER:-}
       VIVO_PORTAL_PASS: ${VIVO_PORTAL_PASS:-}
-      VIVO_PORTAL_URL: ${VIVO_PORTAL_URL:-https://login.vivo.com.br/login}
+      VIVO_PORTAL_URL: ${VIVO_PORTAL_URL:-https://vivogestao.vivoempresas.com.br/Portal/data/login?filter=false}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@yrwentechnology.com.br}
