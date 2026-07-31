@@ -19,6 +19,7 @@ import {
   adminUpdateLineTotal,
   adminAddBonusGb,
   adminResetBonusGb,
+  adminUpdateCycleDays,
   type ClientLine,
 } from "@/lib/api/lines.functions";
 import { Button } from "@/components/ui/button";
@@ -173,6 +174,16 @@ function AdminPage() {
     }
   }
 
+  async function updateCycleDays(line: AdminLine, field: "closingDay" | "renewalDay", value: number) {
+    try {
+      await adminUpdateCycleDays({ data: { lineId: line.id, [field]: value } });
+      toast.success(`${line.number}: ${field === "closingDay" ? "fechamento" : "renovação"} = dia ${value}`);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    }
+  }
+
   if (!authChecked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f3f3f3]">
@@ -292,6 +303,8 @@ function AdminPage() {
                 <th className="px-4 py-3">Consumo</th>
                 <th className="px-4 py-3">Franquia (GB)</th>
                 <th className="px-4 py-3">GB Extras</th>
+                <th className="px-4 py-3">Fecha ciclo</th>
+                <th className="px-4 py-3">Renovação</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Limiar (%)</th>
                 <th className="px-4 py-3">Ações</th>
@@ -300,13 +313,13 @@ function AdminPage() {
             <tbody className="divide-y divide-[#f0f0f0]">
               {lines === null ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-[#999]">
+                  <td colSpan={11} className="px-4 py-10 text-center text-[#999]">
                     Carregando…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-[#999]">
+                  <td colSpan={11} className="px-4 py-10 text-center text-[#999]">
                     Nenhuma linha encontrada.
                   </td>
                 </tr>
@@ -388,6 +401,38 @@ function AdminPage() {
                             </button>
                           )}
                         </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={28}
+                          step={1}
+                          defaultValue={l.closingDay}
+                          onBlur={(e) => {
+                            const v = Number(e.target.value);
+                            if (!Number.isNaN(v) && v >= 1 && v <= 28 && v !== l.closingDay) {
+                              updateCycleDays(l, "closingDay", v);
+                            }
+                          }}
+                          className="w-16"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={28}
+                          step={1}
+                          defaultValue={l.renewalDay}
+                          onBlur={(e) => {
+                            const v = Number(e.target.value);
+                            if (!Number.isNaN(v) && v >= 1 && v <= 28 && v !== l.renewalDay) {
+                              updateCycleDays(l, "renewalDay", v);
+                            }
+                          }}
+                          className="w-16"
+                        />
                       </td>
                       <td className="px-4 py-3">
                         <span

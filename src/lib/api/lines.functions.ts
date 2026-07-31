@@ -273,6 +273,39 @@ export const adminUpdateLineTotal = createServerFn({ method: "POST" })
   });
 
 // ---------------------------------------------------------------------------
+// Admin: definir dia de fechamento e renovação do ciclo
+// ---------------------------------------------------------------------------
+export const adminUpdateCycleDays = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      lineId: z.string().uuid(),
+      closingDay: z.number().min(1).max(28).optional(),
+      renewalDay: z.number().min(1).max(28).optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", userId)
+      .single();
+    if (!profile?.is_admin) throw new Error("Forbidden: admin only");
+
+    const update: Database["public"]["Tables"]["lines"]["Update"] = {};
+    if (data.closingDay !== undefined) update.cycle_closing_day = data.closingDay;
+    if (data.renewalDay !== undefined) update.cycle_renewal_day = data.renewalDay;
+
+    const { error } = await supabase
+      .from("lines")
+      .update(update)
+      .eq("id", data.lineId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ---------------------------------------------------------------------------
 // Admin: adicionar GB extras (bonus_gb) a uma linha
 // ---------------------------------------------------------------------------
 export const adminAddBonusGb = createServerFn({ method: "POST" })

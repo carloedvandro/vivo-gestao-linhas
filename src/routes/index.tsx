@@ -714,12 +714,12 @@ function ResumoConsumo() {
   const lastUpdatedDate = `${pad(lastUpdated.getDate())}/${pad(lastUpdated.getMonth() + 1)}/${lastUpdated.getFullYear()}`;
   const lastUpdatedTime = `${pad(lastUpdated.getHours())}:${pad(lastUpdated.getMinutes())}`;
 
-  const cycleDaysLeft = daysUntilCycleEnd(1, now);
+  const cycleDaysLeft = daysUntilCycleEnd(baseLine.closingDay || 1, now);
   const cycleLabel =
     cycleDaysLeft === 0
       ? "hoje"
       : `em ${cycleDaysLeft} ${cycleDaysLeft === 1 ? "dia" : "dias"}`;
-  const renewalDateLabel = nextRenewalDate(2, now);
+  const renewalDateLabel = nextRenewalDate(baseLine.renewalDay || 2, now);
 
 
   function showToast(msg: string) {
