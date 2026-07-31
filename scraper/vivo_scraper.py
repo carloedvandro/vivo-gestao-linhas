@@ -147,13 +147,14 @@ class VivoPortalScraper:
         await page.keyboard.press("Escape")
         await page.wait_for_timeout(2000)
 
-        # Captura todos os nomes de grupos
+        # Captura todos os nomes de grupos (filtra cabeçalho "GRUPO")
         group_names = await page.evaluate("""() => {
             const groups = [];
             const divs = document.querySelectorAll("div.col-18.padding-lr-10");
             for (const d of divs) {
                 const text = d.textContent.trim();
-                if (text && text.length > 2 && !groups.includes(text)) {
+                // Filtra "GRUPO" que é o cabeçalho da coluna
+                if (text && text.length > 2 && text !== "GRUPO" && !groups.includes(text)) {
                     groups.push(text);
                 }
             }
@@ -176,13 +177,13 @@ class VivoPortalScraper:
 
             # Aguarda o botao "Ver Linhas" aparecer
             try:
-                ver_btn = await page.wait_for_selector("text=Ver Linhas", timeout=15000)
+                ver_btn = await page.wait_for_selector("text=Ver Linhas", timeout=10000)
                 if ver_btn:
                     await ver_btn.click(force=True)
                     await page.wait_for_timeout(5000)
                     log.info("Lista de linhas aberta para %s", group_name)
-            except Exception as e:
-                log.warning("Botao Ver Linhas nao encontrado para %s: %s", group_name, e)
+            except Exception:
+                log.warning("Botao Ver Linhas nao encontrado para %s", group_name)
                 continue
 
             # Clica em "Ver mais linhas" repetidamente até carregar todas
