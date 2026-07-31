@@ -166,6 +166,19 @@ class VivoPortalScraper:
 
         for group_name in group_names:
             log.info("Processando grupo: %s", group_name)
+
+            # Recarrega a pagina de consumo para garantir estado limpo
+            await page.goto("https://vivogestao.vivoempresas.com.br/Portal/data/consumption?filter=false",
+                            wait_until="domcontentloaded", timeout=60000)
+            await page.wait_for_timeout(5000)
+            # Clica em Consumo de Dados novamente
+            dados_tabs = await page.query_selector_all("text=Consumo de Dados")
+            for tab in dados_tabs:
+                if await tab.is_visible():
+                    await tab.click(force=True)
+                    await page.wait_for_timeout(5000)
+                    break
+
             # Clica no grupo para expandir
             group_el = await page.query_selector(f"text={group_name}")
             if not group_el:
