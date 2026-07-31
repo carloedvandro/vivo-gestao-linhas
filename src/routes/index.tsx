@@ -846,7 +846,7 @@ function ResumoConsumo() {
           <span suppressHydrationWarning className="font-semibold text-[#333]">{lastUpdatedTime}</span>
           {baseLine.lastScrapedAt && (
             <span className="text-[#999]">
-              {" "}(scraper: há {Math.round((Date.now() - new Date(baseLine.lastScrapedAt).getTime()) / 60000)} min)
+              {" "}· consumo há {Math.round((Date.now() - new Date(baseLine.lastScrapedAt).getTime()) / 60000)} min
             </span>
           )}
 
