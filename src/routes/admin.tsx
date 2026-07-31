@@ -20,6 +20,7 @@ import {
   adminAddBonusGb,
   adminResetBonusGb,
   adminUpdateCycleDays,
+  adminUpdateUserPassword,
   type ClientLine,
 } from "@/lib/api/lines.functions";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
-type AdminLine = ClientLine & { clientName: string };
+type AdminLine = ClientLine & { clientName: string; userId: string | null };
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -82,6 +83,9 @@ function AdminPage() {
   const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [pwdModal, setPwdModal] = useState<{ line: AdminLine } | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [pwdLoading, setPwdLoading] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -181,6 +185,30 @@ function AdminPage() {
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro");
+    }
+  }
+
+  async function changePassword() {
+    if (!pwdModal?.line.userId) {
+      toast.error("Esta linha não tem usuário vinculado");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("A senha deve ter no mínimo 6 caracteres");
+      return;
+    }
+    setPwdLoading(true);
+    try {
+      await adminUpdateUserPassword({
+        data: { userId: pwdModal.line.userId, newPassword },
+      });
+      toast.success(`Senha de ${pwdModal.line.number} alterada com sucesso`);
+      setPwdModal(null);
+      setNewPassword("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    } finally {
+      setPwdLoading(false);
     }
   }
 
@@ -491,6 +519,19 @@ function AdminPage() {
                               sem link
                             </span>
                           )}
+                          {l.userId && (
+                            <button
+                              onClick={() => {
+                                setPwdModal({ line: l });
+                                setNewPassword("");
+                              }}
+                              className="flex items-center gap-1 rounded-md border border-[#888] px-2 py-1 text-xs font-medium text-[#555] hover:bg-[#f3f3f3]"
+                              title="Trocar senha do usuário"
+                            >
+                              <Lock className="h-3.5 w-3.5" />
+                              Senha
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -508,6 +549,51 @@ function AdminPage() {
           minutos.
         </p>
       </main>
+
+      {/* Modal trocar senha */}
+      {pwdModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+          onClick={() => setPwdModal(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold text-[#333]">Trocar senha</h2>
+            <p className="mt-1 text-sm text-[#888]">
+              Linha: <strong>{pwdModal.line.number}</strong> · Cliente: {pwdModal.line.clientName}
+            </p>
+            <div className="mt-4">
+              <Label className="text-[#555]">Nova senha</Label>
+              <Input
+                type="text"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                className="mt-1"
+                autoFocus
+              />
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setPwdModal(null)}
+                disabled={pwdLoading}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={changePassword}
+                disabled={pwdLoading || newPassword.length < 6}
+                className="bg-[#660099] text-white hover:bg-[#5a0088]"
+              >
+                {pwdLoading ? "Salvando…" : "Salvar senha"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

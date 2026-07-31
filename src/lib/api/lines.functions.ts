@@ -167,6 +167,7 @@ export const adminListLines = createServerFn({ method: "GET" })
     return (lines ?? []).map((l) => ({
       ...mapLine(l, thMap.get(l.id) ?? null),
       clientName: (l as unknown as { profiles?: { name: string | null } | null }).profiles?.name ?? "—",
+      userId: l.user_id,
     }));
   });
 
@@ -392,6 +393,34 @@ export const savePushSubscription = createServerFn({ method: "POST" })
         },
         { onConflict: "user_id,endpoint" },
       );
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ---------------------------------------------------------------------------
+// Admin: trocar senha de um usuário (usa service role)
+// ---------------------------------------------------------------------------
+export const adminUpdateUserPassword = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      userId: z.string().uuid(),
+      newPassword: z.string().min(6).max(72),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", userId)
+      .single();
+    if (!profile?.is_admin) throw new Error("Forbidden: admin only");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      password: data.newPassword,
+    });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
