@@ -156,21 +156,16 @@ class VivoPortalScraper:
             log.warning("Grupo Net nao encontrado")
             return
 
-        # Fecha modal se apareceu
-        await page.keyboard.press("Escape")
-        await page.wait_for_timeout(2000)
-
-        # Clica em "Ver Linhas"
-        log.info("Clicando em Ver Linhas")
-        ver_links = await page.query_selector_all("text=Ver Linhas")
-        for link in ver_links:
-            if await link.is_visible():
-                await link.click(force=True)
+        # Aguarda o botao "Ver Linhas" aparecer (pode demorar a renderizar)
+        log.info("Aguardando botao Ver Linhas")
+        try:
+            ver_btn = await page.wait_for_selector("text=Ver Linhas", timeout=15000)
+            if ver_btn:
+                await ver_btn.click(force=True)
                 await page.wait_for_timeout(5000)
                 log.info("Lista de linhas aberta")
-                break
-        else:
-            log.warning("Botao Ver Linhas nao encontrado")
+        except Exception as e:
+            log.warning("Botao Ver Linhas nao encontrado: %s", e)
 
         # Clica em "Ver mais linhas" repetidamente até carregar todas
         for attempt in range(10):
