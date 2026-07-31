@@ -45,7 +45,7 @@ create type public.line_status as enum
 create table if not exists public.lines (
   id            uuid primary key default gen_random_uuid(),
   number        text not null unique,        -- ex: (31) 97115-7584
-  user_id       uuid references auth.users(id) on delete set null,
+  user_id       uuid references public.profiles(id) on delete set null,
   plan          text not null default '',    -- ex: SmartVoz 50GB
   total_gb      numeric(10,2) not null default 0,  -- franquia contratada
   used_gb       numeric(10,2) not null default 0,  -- consumo atual (último scrape)
