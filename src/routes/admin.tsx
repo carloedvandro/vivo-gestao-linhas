@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   Plus,
@@ -41,6 +41,8 @@ export const Route = createFileRoute("/admin")({
     ],
   }),
   beforeLoad: async () => {
+    // No SSR (server) não há localStorage; skip — o componente verifica no cliente.
+    if (typeof window === "undefined") return;
     const { data } = await supabase.auth.getSession();
     if (!data.session) throw redirect({ to: "/login" });
     // valida admin
@@ -71,9 +73,11 @@ const STATUS_TONE: Record<ClientLine["status"], string> = {
 };
 
 function AdminPage() {
+  const navigate = useNavigate();
   const [lines, setLines] = useState<AdminLine[] | null>(null);
   const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -88,7 +92,25 @@ function AdminPage() {
   }
 
   useEffect(() => {
-    load();
+    // Verifica auth no cliente (cobre acesso direto via URL / full page reload)
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        navigate({ to: "/login" });
+        return;
+      }
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", data.session.user.id)
+        .single();
+      if (!prof?.is_admin) {
+        navigate({ to: "/" });
+        return;
+      }
+      setAuthChecked(true);
+      load();
+    })();
     const i = window.setInterval(load, 60_000);
     return () => window.clearInterval(i);
   }, []);
@@ -116,6 +138,17 @@ function AdminPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro");
     }
+  }
+
+  if (!authChecked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f3f3f3]">
+        <div className="text-center">
+          <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-4 border-[#660099] border-t-transparent" />
+          <p className="text-sm text-[#888]">Verificando acesso…</p>
+        </div>
+      </div>
+    );
   }
 
   const filtered = (lines ?? []).filter(

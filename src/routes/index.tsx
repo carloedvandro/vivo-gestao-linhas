@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   ChevronDown,
@@ -73,6 +73,8 @@ export const Route = createFileRoute("/")({
     links: PRELOAD_ICONS.map((href) => ({ rel: "preload", as: "image", href })),
   }),
   beforeLoad: async () => {
+    // No SSR (server) não há localStorage; skip — o componente verifica no cliente.
+    if (typeof window === "undefined") return;
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
       throw redirect({ to: "/login" });
@@ -548,7 +550,15 @@ function ResumoConsumo() {
     preloadAllIcons().then(() => {
       if (mounted) setIconsReady(true);
     });
-    loadLines();
+    // Verifica auth no cliente (cobre acesso direto via URL / full page reload)
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        window.location.href = "/login";
+        return;
+      }
+      loadLines();
+    })();
     // PWA: registra service worker + push notifications
     registerServiceWorkerAndPush();
     // Atualiza a cada 60s (o scraper roda a cada 5 min; o cliente vê "atualizado há X")
@@ -607,12 +617,12 @@ function ResumoConsumo() {
           </p>
           <div className="mt-6 flex justify-center gap-2">
             {isAdmin && (
-              <a
-                href="/admin"
+              <Link
+                to="/admin"
                 className="rounded-md bg-[#660099] px-4 py-2 text-sm font-medium text-white hover:bg-[#7a00b8]"
               >
                 Ir para o painel admin
-              </a>
+              </Link>
             )}
             <button
               onClick={handleLogout}
@@ -802,14 +812,14 @@ function ResumoConsumo() {
               <span className="hidden sm:inline">Atualizar</span>
             </button>
             {isAdmin && (
-              <a
-                href="/admin"
+              <Link
+                to="/admin"
                 className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-[#660099] hover:bg-[#660099]/10"
                 title="Painel administrativo"
               >
                 <Grid3x3 className="h-4 w-4" />
                 <span className="hidden sm:inline">Admin</span>
-              </a>
+              </Link>
             )}
             <button
               onClick={handleLogout}
