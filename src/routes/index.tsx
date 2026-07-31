@@ -71,6 +71,22 @@ export const Route = createFileRoute("/")({
 
 type Line = ClientLine;
 
+const STATUS_LABELS: Record<LineStatus, string> = {
+  ativa: "Ativa",
+  reduzida: "Velocidade reduzida",
+  bloqueada_fatura: "Bloqueada por fatura",
+  bloqueada_pagamento: "Bloqueada por pagamento",
+  aguardando: "Aguardando",
+};
+
+const STATUS_TONE: Record<LineStatus, string> = {
+  ativa: "#16A34A",
+  reduzida: "#F97316",
+  bloqueada_fatura: "#DC2626",
+  bloqueada_pagamento: "#DC2626",
+  aguardando: "#6B7280",
+};
+
 // O ciclo renova no dia 2 (zera a franquia) e fecha no dia 1.
 // Calcula dias até o fim do ciclo (dia 1), contando o dia atual inclusivamente.
 function daysUntilCycleEnd(closingDay = 1, today = new Date()) {
@@ -492,10 +508,8 @@ function ResumoConsumo() {
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifyWhats, setNotifyWhats] = useState(true);
   const [notifySms, setNotifySms] = useState(true);
-  const [autoDebit, setAutoDebit] = useState(true);
-  const [statusOpen, setStatusOpen] = useState(false);
-  const [confirmAutoDebit, setConfirmAutoDebit] = useState(false);
   const [pixOpen, setPixOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
   const pixCode = "00020126580014BR.GOV.BCB.PIX0136vivo-fatura-8f2a-4c11-9e0b520400005303986540589.905802BR5915VIVO TELEFONICA6008SAO PAULO62070503***6304A1B2";
 
   // --- Dados reais do Supabase ---
@@ -960,43 +974,21 @@ function ResumoConsumo() {
                 </ul>
 
 
-                {/* Renovação automática (integrada, sem card) */}
-                <div className="mt-4 flex items-start justify-between gap-4">
-                  <div className="min-w-0 pt-0.5">
-                    <span className="text-sm font-semibold text-[#1a1a1a]">Renovação automática</span>
-                    <div className="mt-2.5 space-y-0.5">
-                      {autoDebit ? (
-                        <div
-                          className="text-[11px] font-semibold text-[#660099] transition-all duration-500"
-                          style={{ opacity: 1, transform: 'translateY(0)' }}
-                        >
-                          Débito automático ativo
-                        </div>
-                      ) : (
-                        <div className="text-[11px] font-medium text-[#666] transition-all duration-500">
-                          Ative e ganhe +25GB de bônus
-                        </div>
-                      )}
-
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={autoDebit}
-                    onClick={() => {
-                      openAfterIconsReady(() => setConfirmAutoDebit(true));
-                    }}
-                    className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 ${
-                      autoDebit ? "bg-[#16a34a]" : "bg-[#bfbfbf]"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-300 ${
-                        autoDebit ? "translate-x-[22px]" : "translate-x-[2px]"
-                      }`}
-                    />
-                  </button>
+                {/* Status da linha (definido pelo admin) */}
+                <div className="mt-4 flex items-center gap-2">
+                  <div
+                    className="h-3 w-3 shrink-0 rounded-full"
+                    style={{ background: STATUS_TONE[baseLine.status] }}
+                  />
+                  <span className="text-sm font-semibold text-[#1a1a1a]">
+                    Status da linha:{" "}
+                    <span style={{ color: STATUS_TONE[baseLine.status] }}>
+                      {STATUS_LABELS[baseLine.status]}
+                    </span>
+                    {baseLine.status === "reduzida" && (
+                      <span className="ml-1.5 text-xs font-bold">256 Kbps</span>
+                    )}
+                  </span>
                 </div>
               </div>
             </div>
@@ -1530,171 +1522,6 @@ function ResumoConsumo() {
         </div>
       </Modal>
 
-      {/* Confirm Auto-Renewal Modal */}
-      {confirmAutoDebit && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 animate-fade-in"
-          style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
-          onClick={() => setConfirmAutoDebit(false)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-[480px] overflow-hidden rounded-2xl p-5 sm:p-8 animate-slide-up"
-            style={{
-              background: "#ffffff",
-              border: "1px solid rgba(0,0,0,0.06)",
-              boxShadow:
-                "0 30px 60px -20px rgba(102,0,153,0.25), 0 18px 40px -15px rgba(0,0,0,0.18)",
-            }}
-          >
-
-            {/* glow ring top */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[140%] -translate-x-1/2 rounded-full"
-              style={{
-                background:
-                  "radial-gradient(closest-side, rgba(102,0,153,0.18), rgba(102,0,153,0))",
-              }}
-            />
-
-            <div className="relative flex items-center gap-3 sm:gap-4">
-              <img
-                src={icon3dAutorenew}
-                alt="Renovação automática"
-                width={56}
-                height={56}
-                loading="eager" decoding="sync" fetchPriority="high"
-                className="h-12 w-12 sm:h-14 sm:w-14 shrink-0 object-contain"
-              />
-              <div className="min-w-0 flex-1">
-                <h3 className="text-[17px] sm:text-[20px] font-semibold tracking-tight text-[#1a1a1a] leading-tight whitespace-nowrap">
-                  {autoDebit ? "Renovação Automática Ativa" : "Ativar Renovação Automática"}
-                </h3>
-                <p className="mt-0.5 text-xs font-medium text-[#660099]/80">
-                  {autoDebit ? "Função ativa · não pode ser desativada" : "Função premium SmartVoz"}
-                </p>
-              </div>
-            </div>
-
-            <div className="relative mt-6 space-y-4">
-              <p className="text-[14px] leading-relaxed text-[#4a4a4a]">
-                {autoDebit
-                  ? "Ao ativar o débito automático você está ciente que essa função não pode ser desfeita. Seu plano continuará sendo renovado automaticamente todos os meses."
-                  : "Ao ativar a renovação automática, seu plano será renovado todos os meses utilizando o saldo disponível da sua carteira virtual/comissões."}
-              </p>
-
-              {/* Bônus */}
-              <div
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5"
-                style={{
-                  background:
-                    "linear-gradient(135deg, rgba(102,0,153,0.06), rgba(102,0,153,0.02))",
-                  border: "1px solid rgba(102,0,153,0.14)",
-                  boxShadow:
-                    "0 6px 18px -12px rgba(102,0,153,0.30), inset 0 1px 0 rgba(255,255,255,0.6)",
-                }}
-              >
-                <img
-                  src={icon3dBonus}
-                  alt="Bônus de internet"
-                  width={40}
-                  height={40}
-                  loading="eager" decoding="sync" fetchPriority="high"
-                  className="h-10 w-10 shrink-0 object-contain"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-semibold text-[#660099] leading-tight">
-                    Bônus de internet liberado
-                  </p>
-                  <p className="mt-0.5 text-[12.5px] leading-snug text-[#660099]">
-                    Seu plano receberá internet extra automaticamente.
-                  </p>
-                </div>
-              </div>
-
-              {/* Alerta */}
-              <div
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5"
-                style={{
-                  background:
-                    "linear-gradient(135deg, rgba(220,38,38,0.05), rgba(220,38,38,0.015))",
-                  borderLeft: "3px solid #dc2626",
-                  border: "1px solid rgba(220,38,38,0.18)",
-                  borderLeftWidth: 3,
-                }}
-              >
-                <img
-                  src={icon3dAlert}
-                  alt="Atenção"
-                  width={40}
-                  height={40}
-                  loading="eager" decoding="sync" fetchPriority="high"
-                  className="h-10 w-10 shrink-0 object-contain"
-                />
-                <p className="text-[12.5px] leading-snug text-[#991b1b] flex-1">
-                  <span className="font-semibold">Atenção:</span> após ativar, esta função não poderá ser desativada manualmente.
-                </p>
-              </div>
-
-              <p className="text-[12px] leading-relaxed text-[#777]">
-                Os valores da renovação serão descontados automaticamente do saldo disponível da sua conta.
-              </p>
-            </div>
-
-            <div className="relative mt-7 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              {autoDebit ? (
-                <button
-                  type="button"
-                  onClick={() => setConfirmAutoDebit(false)}
-                  className="rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
-                  style={{
-                    background: "linear-gradient(135deg,#660099,#7a00b3)",
-                    boxShadow:
-                      "0 10px 28px -8px rgba(102,0,153,0.6), 0 4px 12px -2px rgba(102,0,153,0.4), inset 0 1px 0 rgba(255,255,255,0.35)",
-                  }}
-                >
-                  Entendi
-                </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmAutoDebit(false)}
-                    className="rounded-xl px-5 py-2.5 text-sm font-semibold text-[#660099] transition hover:bg-[rgba(102,0,153,0.06)]"
-                    style={{
-                      background: "rgba(255,255,255,0.7)",
-                      border: "1px solid rgba(102,0,153,0.35)",
-                      backdropFilter: "blur(8px)",
-                    }}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAutoDebit(true);
-                      setConfirmAutoDebit(false);
-                      setToast("Renovação automática ativada · +25GB liberados");
-                      setTimeout(() => setToast(null), 3000);
-                    }}
-                    className="rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
-                    style={{
-                      background: "linear-gradient(135deg,#660099,#7a00b3)",
-                      boxShadow:
-                        "0 10px 28px -8px rgba(102,0,153,0.6), 0 4px 12px -2px rgba(102,0,153,0.4), inset 0 1px 0 rgba(255,255,255,0.35)",
-                    }}
-                  >
-                    Ativar
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
 
       {/* Status da linha modal */}
