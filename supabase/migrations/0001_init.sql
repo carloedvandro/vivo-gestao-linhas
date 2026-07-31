@@ -17,20 +17,44 @@ create table if not exists public.profiles (
   created_at  timestamptz not null default now()
 );
 
--- Auto-cria profile no signup (inclui telefone do user_metadata)
+-- Auto-cria profile + linha no signup (inclui telefone do user_metadata)
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
+declare
+  v_phone text;
+  v_number text;
 begin
+  v_phone := coalesce(new.raw_user_meta_data->>'phone', '');
+
   insert into public.profiles (id, name, phone)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'name', ''),
-    coalesce(new.raw_user_meta_data->>'phone', null)
+    nullif(v_phone, '')
   )
   on conflict (id) do nothing;
+
+  -- Se o user_metadata tem phone (cliente cadastrou com celular),
+  -- cria automaticamente uma linha vinculada a este usuário.
+  -- O número da linha = o celular cadastrado (formato E.164 sem o 55 inicial).
+  if v_phone != '' then
+    -- remove DDI 55 se presente, mantém só DDD + número
+    v_number := case
+      when v_phone like '55%' and length(v_phone) > 11 then substring(v_phone from 3)
+      else v_phone
+    end;
+
+    insert into public.lines (number, user_id)
+    values (v_number, new.id)
+    on conflict (number) do update
+      set user_id = new.id,
+          updated_at = now()
+      where lines.user_id is distinct from new.id;
+  end if;
+
   return new;
 end;
 $$;
