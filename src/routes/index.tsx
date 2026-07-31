@@ -521,10 +521,16 @@ function ResumoConsumo() {
   const [now, setNow] = useState(() => new Date());
   const [lastUpdated, setLastUpdated] = useState(() => new Date());
 
-  async function loadLines() {
+  async function loadLines(opts?: { retry?: boolean }) {
     try {
       setLoadError(null);
-      const data = await getMyLines();
+      let data = await getMyLines();
+      // Se nao tem linhas e nao é retry, esperar 2s e tentar novamente
+      // (o trigger pode ainda estar criando a linha apos o signup)
+      if (data.length === 0 && !opts?.retry) {
+        await new Promise((r) => setTimeout(r, 2000));
+        data = await getMyLines();
+      }
       setLines(data);
       setLastRefresh(new Date());
       const { data: u } = await supabase.auth.getUser();
