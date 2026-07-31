@@ -147,15 +147,30 @@ class VivoPortalScraper:
         await page.keyboard.press("Escape")
         await page.wait_for_timeout(2000)
 
+        # Aguarda o conteudo dinamico carregar
+        await page.wait_for_timeout(3000)
+
         # Captura todos os nomes de grupos (filtra cabeçalho "GRUPO")
+        # Procura por divs com class que contem "col-18" ou textos conhecidos
         group_names = await page.evaluate("""() => {
             const groups = [];
+            // Metodo 1: divs com class col-18
             const divs = document.querySelectorAll("div.col-18.padding-lr-10");
             for (const d of divs) {
                 const text = d.textContent.trim();
-                // Filtra "GRUPO" que é o cabeçalho da coluna
                 if (text && text.length > 2 && text !== "GRUPO" && !groups.includes(text)) {
                     groups.push(text);
+                }
+            }
+            // Metodo 2: se nao encontrou, procura por textos conhecidos
+            if (groups.length === 0) {
+                const allDivs = document.querySelectorAll("div");
+                for (const d of allDivs) {
+                    const text = d.textContent.trim();
+                    if ((text.includes("Carlo Edvandro") || text.includes("Jacqueline") || text === "Net")
+                        && text.length < 100 && !groups.includes(text)) {
+                        groups.push(text);
+                    }
                 }
             }
             return groups;
