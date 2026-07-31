@@ -32,6 +32,13 @@ function normalizePhone(raw: string): string {
   return digits;
 }
 
+// Normaliza para o formato sem DDI (apenas DDD + número) — usado na base available_lines
+function normalizeLineNumber(raw: string): string {
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("55") && digits.length >= 12) return digits.substring(2);
+  return digits;
+}
+
 // Email sintético derivado do celular — o Supabase Auth exige um email internamente
 function phoneToEmail(phone: string): string {
   return `${normalizePhone(phone)}@vivo.local`;
@@ -85,6 +92,24 @@ function LoginPage() {
         toast.success("Bem-vindo de volta!");
         navigate({ to: "/" });
       } else {
+        // Validar se a linha existe na base de dados da Ytech
+        const lineNumber = normalizeLineNumber(phone);
+        const { data: availData, error: availErr } = await supabase
+          .from("available_lines")
+          .select("number, linked")
+          .eq("number", lineNumber)
+          .maybeSingle();
+
+        if (availErr) {
+          throw new Error("Erro ao validar linha. Tente novamente.");
+        }
+        if (!availData) {
+          throw new Error("Esta linha não está na base de dados da empresa Ytech. Verifique o número ou entre em contato com o suporte.");
+        }
+        if (availData.linked) {
+          throw new Error("Esta linha já está cadastrada. Faça login com seu celular e senha.");
+        }
+
         const { error } = await supabase.auth.signUp({
           email: syntheticEmail,
           password,

@@ -35,7 +35,9 @@ begin
     coalesce(new.raw_user_meta_data->>'name', ''),
     nullif(v_phone, '')
   )
-  on conflict (id) do nothing;
+  on conflict (id) do update
+    set name = EXCLUDED.name,
+        phone = COALESCE(EXCLUDED.phone, profiles.phone);
 
   -- Se o user_metadata tem phone (cliente cadastrou com celular),
   -- cria automaticamente uma linha vinculada a este usuário.
@@ -47,12 +49,18 @@ begin
       else v_phone
     end;
 
-    insert into public.lines (number, user_id)
-    values (v_number, new.id)
+    insert into public.lines (number, user_id, total_gb)
+    values (v_number, new.id, 130)
     on conflict (number) do update
       set user_id = new.id,
+          total_gb = COALESCE(NULLIF(lines.total_gb, 0), 130),
           updated_at = now()
       where lines.user_id is distinct from new.id;
+
+    -- Marcar a linha como vinculada na available_lines
+    update public.available_lines
+      set linked = true
+      where number = v_number;
   end if;
 
   return new;
@@ -89,6 +97,22 @@ create table if not exists public.lines (
 );
 
 create index if not exists lines_user_id_idx on public.lines(user_id);
+
+-- ---------------------------------------------------------------------------
+-- available_lines: linhas disponíveis no portal Vivo (para validação no cadastro)
+-- ---------------------------------------------------------------------------
+create table if not exists public.available_lines (
+  id          uuid primary key default gen_random_uuid(),
+  number      text not null unique,
+  display     text,
+  group_name  text,
+  linked      boolean not null default false,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.available_lines enable row level security;
+create policy "available_lines_select" on public.available_lines for select using (true);
+create policy "available_lines_admin_all" on public.available_lines using (is_admin()) with check (is_admin());
 
 -- ---------------------------------------------------------------------------
 -- consumption_snapshots: histórico de consumo (uma linha por scrape)

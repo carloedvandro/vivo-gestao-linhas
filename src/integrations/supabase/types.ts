@@ -90,6 +90,31 @@ export type Database = {
         }
         Relationships: []
       }
+      available_lines: {
+        Row: {
+          id: string
+          number: string
+          display: string | null
+          group_name: string | null
+          linked: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          number: string
+          display?: string | null
+          group_name?: string | null
+          linked?: boolean
+        }
+        Update: {
+          id?: string
+          number?: string
+          display?: string | null
+          group_name?: string | null
+          linked?: boolean
+        }
+        Relationships: []
+      }
       consumption_snapshots: {
         Row: {
           id: string
