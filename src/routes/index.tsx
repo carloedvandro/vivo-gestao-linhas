@@ -572,6 +572,41 @@ function ResumoConsumo() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Timer para atualizar "agora" a cada meia-noite (e no focus)
+  useEffect(() => {
+    const scheduleMidnight = () => {
+      const n = new Date();
+      const next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 0, 0, 1);
+      return window.setTimeout(() => {
+        setNow(new Date());
+        timer = scheduleMidnight();
+      }, next.getTime() - n.getTime());
+    };
+    let timer = scheduleMidnight();
+    const onFocus = () => setNow(new Date());
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, []);
+
+  // Atualiza lastUpdated a cada 60s e no focus
+  useEffect(() => {
+    const refresh = () => setLastUpdated(new Date());
+    const interval = window.setInterval(refresh, 60_000);
+    const onFocus = () => refresh();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, []);
+
   async function handleLogout() {
     await supabase.auth.signOut();
     window.location.href = "/login";
@@ -691,38 +726,6 @@ function ResumoConsumo() {
   const availPctExact = (Math.round((100 - pct) * 100) / 100).toFixed(2);
   const color = ringColor(pct);
 
-  useEffect(() => {
-    const scheduleMidnight = () => {
-      const n = new Date();
-      const next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 0, 0, 1);
-      return window.setTimeout(() => {
-        setNow(new Date());
-        timer = scheduleMidnight();
-      }, next.getTime() - n.getTime());
-    };
-    let timer = scheduleMidnight();
-    const onFocus = () => setNow(new Date());
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onFocus);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onFocus);
-    };
-  }, []);
-
-  useEffect(() => {
-    const refresh = () => setLastUpdated(new Date());
-    const interval = window.setInterval(refresh, 60_000);
-    const onFocus = () => refresh();
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onFocus);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onFocus);
-    };
-  }, []);
   const pad = (n: number) => String(n).padStart(2, "0");
   const lastUpdatedDate = `${pad(lastUpdated.getDate())}/${pad(lastUpdated.getMonth() + 1)}/${lastUpdated.getFullYear()}`;
   const lastUpdatedTime = `${pad(lastUpdated.getHours())}:${pad(lastUpdated.getMinutes())}`;
