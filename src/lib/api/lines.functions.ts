@@ -29,6 +29,14 @@ export type ClientLine = {
   lastScrapedAt: string | null;
   clientName: string | null;
   groupName: string | null;
+  iccid: string | null;
+  activationDate: string | null;
+  monthlyValue: number | null;
+  dueDay: number | null;
+  paymentMethod: string | null;
+  vivoRepass: number | null;
+  repass: number | null;
+  acerto: string | null;
   threshold: {
     warnPct: number;
     warnGb: number | null;
@@ -574,6 +582,14 @@ function mapLine(l: LineRow, t: ThresholdRow | null): ClientLine {
     lastScrapedAt: l.last_scraped_at,
     clientName: l.client_name ?? null,
     groupName: l.group_name ?? null,
+    iccid: l.iccid ?? null,
+    activationDate: l.activation_date ?? null,
+    monthlyValue: l.monthly_value == null ? null : Number(l.monthly_value),
+    dueDay: l.due_day ?? null,
+    paymentMethod: l.payment_method ?? null,
+    vivoRepass: l.vivo_repass == null ? null : Number(l.vivo_repass),
+    repass: l.repass == null ? null : Number(l.repass),
+    acerto: l.acerto ?? null,
     threshold: t
       ? { warnPct: Number(t.warn_pct), warnGb: t.warn_gb == null ? null : Number(t.warn_gb), enabled: t.enabled }
       : null,

@@ -45,7 +45,19 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
-type AdminLine = ClientLine & { clientName: string | null; groupName: string | null; userId: string | null };
+type AdminLine = ClientLine & {
+  clientName: string | null;
+  groupName: string | null;
+  userId: string | null;
+  iccid: string | null;
+  activationDate: string | null;
+  monthlyValue: number | null;
+  dueDay: number | null;
+  paymentMethod: string | null;
+  vivoRepass: number | null;
+  repass: number | null;
+  acerto: string | null;
+};
 
 type Supplier = {
   id: string;
@@ -543,13 +555,21 @@ function AdminPage() {
 
         {/* tabela */}
         <div className={`mt-4 overflow-x-auto rounded-lg border ${borderClr} ${d ? "bg-[#242424]" : "bg-white"}`}>
-          <table className={`w-full min-w-[1400px] text-sm whitespace-nowrap ${tableDivide}`}>
+          <table className={`w-full min-w-[2200px] text-sm whitespace-nowrap ${tableDivide}`}>
             <thead className={`${tableHead} text-left text-xs uppercase tracking-wider ${textMuted}`}>
               <tr>
                 <th className="px-4 py-3">Linha</th>
                 <th className="px-4 py-3">Nome do cliente</th>
                 <th className="px-4 py-3">Fornecedor</th>
                 <th className="px-4 py-3">Plano</th>
+                <th className="px-4 py-3">ICCID</th>
+                <th className="px-4 py-3">Ativação</th>
+                <th className="px-4 py-3">Valor</th>
+                <th className="px-4 py-3">Venc.</th>
+                <th className="px-4 py-3">Pagamento</th>
+                <th className="px-4 py-3">Repasse Vivo</th>
+                <th className="px-4 py-3">Repasse</th>
+                <th className="px-4 py-3">Acerto</th>
                 <th className="px-4 py-3">Consumo</th>
                 <th className="px-4 py-3">Franquia (GB)</th>
                 <th className="px-4 py-3">GB Extras</th>
@@ -563,13 +583,13 @@ function AdminPage() {
             <tbody className="divide-y divide-[#f0f0f0]">
               {lines === null ? (
                 <tr>
-                  <td colSpan={12} className={`px-4 py-10 text-center ${textMuted}`}>
+                  <td colSpan={20} className={`px-4 py-10 text-center ${textMuted}`}>
                     Carregando…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className={`px-4 py-10 text-center ${textMuted}`}>
+                  <td colSpan={20} className={`px-4 py-10 text-center ${textMuted}`}>
                     Nenhuma linha encontrada.
                   </td>
                 </tr>
@@ -620,6 +640,14 @@ function AdminPage() {
                         </Select>
                       </td>
                       <td className={`px-4 py-3 ${textSub}`}>{l.plan}</td>
+                      <td className={`px-4 py-3 font-mono text-xs ${d ? "text-[#888]" : "text-[#666]"}`}>{l.iccid ?? "—"}</td>
+                      <td className={`px-4 py-3 ${textSub}`}>{l.activationDate ? new Date(l.activationDate).toLocaleDateString("pt-BR") : "—"}</td>
+                      <td className={`px-4 py-3 ${textSub}`}>{l.monthlyValue != null ? `R$ ${l.monthlyValue.toFixed(2).replace(".", ",")}` : "—"}</td>
+                      <td className={`px-4 py-3 ${textSub}`}>{l.dueDay ?? "—"}</td>
+                      <td className={`px-4 py-3 ${textSub}`}>{l.paymentMethod ?? "—"}</td>
+                      <td className={`px-4 py-3 ${textSub}`}>{l.vivoRepass != null ? `R$ ${l.vivoRepass.toFixed(2).replace(".", ",")}` : "—"}</td>
+                      <td className={`px-4 py-3 ${textSub}`}>{l.repass != null ? `R$ ${l.repass.toFixed(2).replace(".", ",")}` : "—"}</td>
+                      <td className={`px-4 py-3 ${textSub}`}>{l.acerto ?? "—"}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-24 overflow-hidden rounded-full bg-[#eee]">

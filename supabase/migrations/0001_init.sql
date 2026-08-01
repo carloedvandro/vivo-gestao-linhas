@@ -92,7 +92,15 @@ create table if not exists public.lines (
   vivo_portal_url    text,                     -- link direto p/ bloqueio (semiautomático)
   vivo_line_id       text,                     -- id interno da linha no portal Vivo
   client_name        text,                     -- nome do cliente (definido pelo admin)
-  group_name         text,                     -- grupo/fornecedor (definido pelo admin)
+  group_name         text,                     -- fornecedor (definido pelo admin)
+  iccid              text,                     -- ICCID do chip
+  activation_date    date,                     -- data de ativação
+  monthly_value      numeric(10,2),             -- valor mensal
+  due_day            int,                       -- dia de vencimento
+  payment_method     text,                     -- forma de pagamento
+  vivo_repass        numeric(10,2),             -- repasse Vivo
+  repass             numeric(10,2),             -- repasse ao fornecedor
+  acerto             text,                     -- acerto/shalon
   last_scraped_at    timestamptz,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
