@@ -1,5 +1,6 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import jsPDF from "jspdf";
 import {
   Plus,
   RefreshCw,
@@ -13,6 +14,7 @@ import {
   Users,
   Sun,
   Moon,
+  FileDown,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -111,6 +113,7 @@ function AdminPage() {
   const navigate = useNavigate();
   const [lines, setLines] = useState<AdminLine[] | null>(null);
   const [filter, setFilter] = useState("");
+  const [supplierFilter, setSupplierFilter] = useState<string>("__all__");
   const [loading, setLoading] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [pwdModal, setPwdModal] = useState<{ line: AdminLine } | null>(null);
@@ -333,10 +336,11 @@ function AdminPage() {
 
   const filtered = (lines ?? []).filter(
     (l) =>
-      l.number.includes(filter) ||
-      l.plan.toLowerCase().includes(filter.toLowerCase()) ||
-      (l.clientName ?? "").toLowerCase().includes(filter.toLowerCase()) ||
-      (l.groupName ?? "").toLowerCase().includes(filter.toLowerCase()),
+      (supplierFilter === "__all__" || l.groupName === supplierFilter) &&
+      (l.number.includes(filter) ||
+        l.plan.toLowerCase().includes(filter.toLowerCase()) ||
+        (l.clientName ?? "").toLowerCase().includes(filter.toLowerCase()) ||
+        (l.groupName ?? "").toLowerCase().includes(filter.toLowerCase())),
   );
 
   // métricas resumidas
@@ -349,6 +353,73 @@ function AdminPage() {
     return l.used >= limit;
   }).length;
   const blocked = (lines ?? []).filter((l) => l.status.startsWith("bloqueada")).length;
+
+  function exportPDF() {
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 10;
+    let y = 15;
+
+    // Titulo
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Relatorio de Linhas — Ytech", margin, y);
+    y += 6;
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    const filtroTxt = supplierFilter !== "__all__" ? `Fornecedor: ${supplierFilter}` : "Todos os fornecedores";
+    const dataTxt = `Gerado em: ${new Date().toLocaleString("pt-BR")} | ${filtroTxt} | ${filtered.length} linha(s)`;
+    doc.text(dataTxt, margin, y);
+    y += 8;
+
+    // Cabecalho da tabela
+    const cols = ["Linha", "Cliente", "Ativacao", "Valor", "Venc.", "Consumo", "Franquia", "GB Extra", "Fecha ciclo", "Renovacao", "Status"];
+    const colWidths = [28, 55, 22, 20, 14, 22, 20, 20, 22, 22, 24];
+    const rowHeight = 6;
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    let x = margin;
+    cols.forEach((c, i) => {
+      doc.text(c, x, y);
+      x += colWidths[i];
+    });
+    y += 2;
+    doc.setDrawColor(200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += rowHeight;
+
+    // Dados
+    doc.setFont("helvetica", "normal");
+    filtered.forEach((l) => {
+      if (y > doc.internal.pageSize.getHeight() - 15) {
+        doc.addPage();
+        y = 15;
+        doc.setFont("helvetica", "bold");
+        x = margin;
+        cols.forEach((c, i) => { doc.text(c, x, y); x += colWidths[i]; });
+        y += 2;
+        doc.line(margin, y, pageWidth - margin, y);
+        y += rowHeight;
+        doc.setFont("helvetica", "normal");
+      }
+      const atv = l.activationDate ? new Date(l.activationDate).toLocaleDateString("pt-BR") : "—";
+      const valor = l.monthlyValue != null ? `R$ ${l.monthlyValue.toFixed(2).replace(".", ",")}` : "—";
+      const consumo = `${l.used.toFixed(2)} GB`;
+      const franquia = `${l.total} GB`;
+      const extra = `${l.bonusGb} GB`;
+      const status = l.status === "ativa" ? "Ativa" : l.status === "bloqueada_fatura" ? "Bloqueada" : l.status;
+      const vals = [l.number, (l.clientName ?? "—").substring(0, 35), atv, valor, String(l.dueDay ?? "—"), consumo, franquia, extra, String(l.closingDay), String(l.renewalDay), status];
+      x = margin;
+      vals.forEach((v, i) => {
+        doc.text(String(v), x, y);
+        x += colWidths[i];
+      });
+      y += rowHeight;
+    });
+
+    doc.save(`relatorio-linhas-${new Date().toISOString().slice(0, 10)}.pdf`);
+  }
 
   const d = darkMode;
   const bg = d ? "bg-[#1a1a1a]" : "bg-[#f3f3f3]";
@@ -548,9 +619,28 @@ function AdminPage() {
               placeholder="Buscar por número, plano, cliente ou fornecedor…"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="pl-9"
+              className={`pl-9 ${d ? "text-white" : "text-[#1a1a1a]"}`}
             />
           </div>
+          <select
+            value={supplierFilter}
+            onChange={(e) => setSupplierFilter(e.target.value)}
+            className={`rounded-md border px-3 py-2 text-sm ${d ? "border-[#444] bg-[#242424] text-white" : "border-[#ddd] bg-white text-[#1a1a1a]"}`}
+          >
+            <option value="__all__">Todos os fornecedores</option>
+            {(suppliers ?? []).map((s) => (
+              <option key={s.id} value={s.name}>{s.name}</option>
+            ))}
+          </select>
+          <button
+            onClick={exportPDF}
+            disabled={!lines || filtered.length === 0}
+            className="flex items-center gap-1 rounded-md bg-[#660099] px-3 py-2 text-sm font-medium text-white hover:bg-[#550080] disabled:opacity-50"
+            title="Gerar PDF do resultado filtrado"
+          >
+            <FileDown className="h-4 w-4" />
+            <span className="hidden sm:inline">Gerar PDF</span>
+          </button>
         </div>
 
         {/* tabela */}

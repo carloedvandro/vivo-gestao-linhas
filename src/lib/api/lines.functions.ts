@@ -308,7 +308,10 @@ export const adminUpdateCycleDays = createServerFn({ method: "POST" })
     if (!profile?.is_admin) throw new Error("Forbidden: admin only");
 
     const update: Database["public"]["Tables"]["lines"]["Update"] = {};
-    if (data.closingDay !== undefined) update.cycle_closing_day = data.closingDay;
+    if (data.closingDay !== undefined) {
+      update.cycle_closing_day = data.closingDay;
+      update.due_day = data.closingDay;
+    }
     if (data.renewalDay !== undefined) update.cycle_renewal_day = data.renewalDay;
 
     const { error } = await supabase
