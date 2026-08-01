@@ -91,6 +91,8 @@ create table if not exists public.lines (
   cycle_renewal_day  int not null default 2,   -- dia de renovação
   vivo_portal_url    text,                     -- link direto p/ bloqueio (semiautomático)
   vivo_line_id       text,                     -- id interno da linha no portal Vivo
+  client_name        text,                     -- nome do cliente (definido pelo admin)
+  group_name         text,                     -- grupo/fornecedor (definido pelo admin)
   last_scraped_at    timestamptz,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()

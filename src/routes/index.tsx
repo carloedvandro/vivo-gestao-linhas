@@ -535,8 +535,13 @@ function ResumoConsumo() {
       setLastRefresh(new Date());
       const { data: u } = await supabase.auth.getUser();
       if (u.user) {
+        // Prioriza o client_name definido pelo admin; fallback para user_metadata
+        const lineClientName = data[0]?.clientName;
         setProfileName(
-          (u.user.user_metadata?.name as string) || u.user.email?.split("@")[0] || "",
+          lineClientName ||
+          (u.user.user_metadata?.name as string) ||
+          u.user.email?.split("@")[0] ||
+          "",
         );
         const { data: prof } = await supabase
           .from("profiles")

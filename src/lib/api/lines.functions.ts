@@ -27,6 +27,8 @@ export type ClientLine = {
   renewalDay: number;
   vivoPortalUrl: string | null;
   lastScrapedAt: string | null;
+  clientName: string | null;
+  groupName: string | null;
   threshold: {
     warnPct: number;
     warnGb: number | null;
@@ -426,6 +428,39 @@ export const adminUpdateUserPassword = createServerFn({ method: "POST" })
   });
 
 // ---------------------------------------------------------------------------
+// Admin: definir nome do cliente e grupo da linha
+// ---------------------------------------------------------------------------
+export const adminUpdateLineClientInfo = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      lineId: z.string().uuid(),
+      clientName: z.string().nullable().optional(),
+      groupName: z.string().nullable().optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", userId)
+      .single();
+    if (!profile?.is_admin) throw new Error("Forbidden: admin only");
+
+    const update: Database["public"]["Tables"]["lines"]["Update"] = {};
+    if (data.clientName !== undefined) update.client_name = data.clientName;
+    if (data.groupName !== undefined) update.group_name = data.groupName;
+
+    const { error } = await supabase
+      .from("lines")
+      .update(update)
+      .eq("id", data.lineId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
 function mapLine(l: LineRow, t: ThresholdRow | null): ClientLine {
@@ -442,6 +477,8 @@ function mapLine(l: LineRow, t: ThresholdRow | null): ClientLine {
     renewalDay: l.cycle_renewal_day,
     vivoPortalUrl: l.vivo_portal_url,
     lastScrapedAt: l.last_scraped_at,
+    clientName: l.client_name ?? null,
+    groupName: l.group_name ?? null,
     threshold: t
       ? { warnPct: Number(t.warn_pct), warnGb: t.warn_gb == null ? null : Number(t.warn_gb), enabled: t.enabled }
       : null,

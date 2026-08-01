@@ -54,6 +54,8 @@ export type Database = {
           cycle_renewal_day: number
           vivo_portal_url: string | null
           vivo_line_id: string | null
+          client_name: string | null
+          group_name: string | null
           last_scraped_at: string | null
           created_at: string
           updated_at: string
@@ -71,6 +73,8 @@ export type Database = {
           cycle_renewal_day?: number
           vivo_portal_url?: string | null
           vivo_line_id?: string | null
+          client_name?: string | null
+          group_name?: string | null
           last_scraped_at?: string | null
         }
         Update: {
@@ -86,6 +90,8 @@ export type Database = {
           cycle_renewal_day?: number
           vivo_portal_url?: string | null
           vivo_line_id?: string | null
+          client_name?: string | null
+          group_name?: string | null
           last_scraped_at?: string | null
         }
         Relationships: []

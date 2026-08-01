@@ -21,6 +21,7 @@ import {
   adminResetBonusGb,
   adminUpdateCycleDays,
   adminUpdateUserPassword,
+  adminUpdateLineClientInfo,
   type ClientLine,
 } from "@/lib/api/lines.functions";
 import { Button } from "@/components/ui/button";
@@ -212,6 +213,18 @@ function AdminPage() {
     }
   }
 
+  async function updateClientInfo(line: AdminLine, field: "clientName" | "groupName", value: string) {
+    try {
+      await adminUpdateLineClientInfo({
+        data: { lineId: line.id, [field]: value || null },
+      });
+      toast.success(`${line.number}: ${field === "clientName" ? "nome" : "grupo"} atualizado`);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    }
+  }
+
   if (!authChecked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f3f3f3]">
@@ -227,7 +240,8 @@ function AdminPage() {
     (l) =>
       l.number.includes(filter) ||
       l.plan.toLowerCase().includes(filter.toLowerCase()) ||
-      l.clientName.toLowerCase().includes(filter.toLowerCase()),
+      (l.clientName ?? "").toLowerCase().includes(filter.toLowerCase()) ||
+      (l.groupName ?? "").toLowerCase().includes(filter.toLowerCase()),
   );
 
   // métricas resumidas
@@ -326,7 +340,8 @@ function AdminPage() {
             <thead className="bg-[#fafafa] text-left text-xs uppercase tracking-wider text-[#888]">
               <tr>
                 <th className="px-4 py-3">Linha</th>
-                <th className="px-4 py-3">Cliente</th>
+                <th className="px-4 py-3">Nome do cliente</th>
+                <th className="px-4 py-3">Grupo</th>
                 <th className="px-4 py-3">Plano</th>
                 <th className="px-4 py-3">Consumo</th>
                 <th className="px-4 py-3">Franquia (GB)</th>
@@ -341,13 +356,13 @@ function AdminPage() {
             <tbody className="divide-y divide-[#f0f0f0]">
               {lines === null ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-10 text-center text-[#999]">
+                  <td colSpan={12} className="px-4 py-10 text-center text-[#999]">
                     Carregando…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-10 text-center text-[#999]">
+                  <td colSpan={12} className="px-4 py-10 text-center text-[#999]">
                     Nenhuma linha encontrada.
                   </td>
                 </tr>
@@ -363,7 +378,32 @@ function AdminPage() {
                   return (
                     <tr key={l.id} className={inAlert ? "bg-[#FFF7ED]" : ""}>
                       <td className="px-4 py-3 font-medium text-[#333]">{l.number}</td>
-                      <td className="px-4 py-3 text-[#555]">{l.clientName}</td>
+                      <td className="px-4 py-3">
+                        <Input
+                          type="text"
+                          defaultValue={l.clientName ?? ""}
+                          placeholder="Nome do cliente"
+                          onBlur={(e) => {
+                            if (e.target.value !== (l.clientName ?? "")) {
+                              updateClientInfo(l, "clientName", e.target.value);
+                            }
+                          }}
+                          className="w-36"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <Input
+                          type="text"
+                          defaultValue={l.groupName ?? ""}
+                          placeholder="Grupo"
+                          onBlur={(e) => {
+                            if (e.target.value !== (l.groupName ?? "")) {
+                              updateClientInfo(l, "groupName", e.target.value);
+                            }
+                          }}
+                          className="w-32"
+                        />
+                      </td>
                       <td className="px-4 py-3 text-[#555]">{l.plan}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
