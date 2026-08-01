@@ -7,14 +7,18 @@ import {
   ExternalLink,
   Lock,
   Unlock,
+  Bell,
   Search,
   Trash2,
   Users,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import {
   adminListLines,
+  adminUpdateThreshold,
   adminUpdateLineStatus,
   adminUpdateLineTotal,
   adminAddBonusGb,
@@ -104,6 +108,20 @@ function AdminPage() {
   const [showSupplierForm, setShowSupplierForm] = useState(false);
   const [supplierForm, setSupplierForm] = useState({ name: "", email: "", phone: "" });
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("admin-dark") === "true";
+    }
+    return false;
+  });
+
+  function toggleDarkMode() {
+    const next = !darkMode;
+    setDarkMode(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("admin-dark", String(next));
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -146,6 +164,16 @@ function AdminPage() {
   async function handleLogout() {
     await supabase.auth.signOut();
     window.location.href = "/login";
+  }
+
+  async function updateThreshold(line: AdminLine, warnPct: number) {
+    try {
+      await adminUpdateThreshold({ data: { lineId: line.id, warnPct } });
+      toast.success(`Limiar de ${line.number} atualizado para ${warnPct}%`);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    }
   }
 
   async function updateStatus(line: AdminLine, status: ClientLine["status"]) {
@@ -301,33 +329,60 @@ function AdminPage() {
 
   // métricas resumidas
   const total = lines?.length ?? 0;
+  const alerting = (lines ?? []).filter((l) => {
+    if (l.total <= 0) return false;
+    const th = l.threshold;
+    if (!th || !th.enabled) return false;
+    const limit = th.warnGb != null ? th.warnGb : (th.warnPct / 100) * l.total;
+    return l.used >= limit;
+  }).length;
   const blocked = (lines ?? []).filter((l) => l.status.startsWith("bloqueada")).length;
 
+  const d = darkMode;
+  const bg = d ? "bg-[#1a1a1a]" : "bg-[#f3f3f3]";
+  const bgCard = d ? "bg-[#242424] border-[#333]" : "bg-white border-[#eee]";
+  const bgHeader = d ? "bg-[#242424]/90 border-[#333]" : "bg-white/90 border-[#eee]";
+  const textMain = d ? "text-[#e0e0e0]" : "text-[#333]";
+  const textMuted = d ? "text-[#999]" : "text-[#888]";
+  const textSub = d ? "text-[#aaa]" : "text-[#555]";
+  const borderClr = d ? "border-[#333]" : "border-[#eee]";
+  const hoverBg = d ? "hover:bg-[#2a2a2a]" : "hover:bg-[#f3f3f3]";
+  const inputClr = d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "";
+  const tableHead = d ? "bg-[#1a1a1a] text-[#888]" : "bg-[#fafafa] text-[#888]";
+  const tableDivide = d ? "divide-[#333]" : "divide-[#f0f0f0]";
+
   return (
-    <div className="min-h-screen bg-[#f3f3f3]">
-      <header className="sticky top-0 z-30 border-b border-[#eee] bg-white/90 backdrop-blur">
+    <div className={`min-h-screen ${bg}`}>
+      <header className={`sticky top-0 z-30 border-b ${bgHeader} backdrop-blur`}>
         <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-4 py-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#660099] text-sm font-bold text-white">
             A
           </div>
-          <h1 className="text-lg font-semibold text-[#333]">Painel Administrativo</h1>
+          <h1 className={`text-lg font-semibold ${textMain}`}>Painel Administrativo</h1>
           <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={toggleDarkMode}
+              className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium ${textSub} ${hoverBg}`}
+              title={d ? "Modo claro" : "Modo escuro"}
+            >
+              {d ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
             <a
               href="/"
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-[#555] hover:bg-[#f3f3f3]"
+              className={`rounded-md px-3 py-1.5 text-sm font-medium ${textSub} ${hoverBg}`}
             >
               Ver como cliente
             </a>
             <button
               onClick={load}
-              className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-[#555] hover:bg-[#f3f3f3]"
+              className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium ${textSub} ${hoverBg}`}
             >
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               Atualizar
             </button>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-[#555] hover:bg-[#f3f3f3]"
+              className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium ${textSub} ${hoverBg}`}
             >
               <LogOut className="h-4 w-4" />
               Sair
@@ -339,17 +394,27 @@ function AdminPage() {
       <main className="mx-auto max-w-[1400px] px-4 py-6">
         {/* métricas */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Card>
+          <Card className={`${bgCard} ${borderClr}`}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-[#888]">Total de linhas</CardTitle>
+              <CardTitle className={`text-sm font-medium ${textMuted}`}>Total de linhas</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-[#660099]">{total}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className={`${bgCard} ${borderClr}`}>
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-1 text-sm font-medium text-[#888]">
+              <CardTitle className={`flex items-center gap-1 text-sm font-medium ${textMuted}`}>
+                <Bell className="h-3.5 w-3.5" /> Em alerta
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-[#F97316]">{alerting}</div>
+            </CardContent>
+          </Card>
+          <Card className={`${bgCard} ${borderClr}`}>
+            <CardHeader className="pb-2">
+              <CardTitle className={`flex items-center gap-1 text-sm font-medium ${textMuted}`}>
                 <Lock className="h-3.5 w-3.5" /> Bloqueadas
               </CardTitle>
             </CardHeader>
@@ -360,9 +425,9 @@ function AdminPage() {
         </div>
 
         {/* fornecedores */}
-        <div className="mt-6 rounded-lg border border-[#eee] bg-white p-4">
+        <div className={`mt-6 rounded-lg border ${borderClr} ${d ? "bg-[#242424]" : "bg-white"} p-4`}>
           <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-[#333]">
+            <h2 className={`flex items-center gap-2 text-sm font-semibold ${textMain}`}>
               <Users className="h-4 w-4 text-[#660099]" />
               Fornecedores
             </h2>
@@ -477,9 +542,9 @@ function AdminPage() {
         </div>
 
         {/* tabela */}
-        <div className="mt-4 overflow-x-auto rounded-lg border border-[#eee] bg-white">
-          <table className="w-full min-w-[1400px] text-sm whitespace-nowrap">
-            <thead className="bg-[#fafafa] text-left text-xs uppercase tracking-wider text-[#888]">
+        <div className={`mt-4 overflow-x-auto rounded-lg border ${borderClr} ${d ? "bg-[#242424]" : "bg-white"}`}>
+          <table className={`w-full min-w-[1400px] text-sm whitespace-nowrap ${tableDivide}`}>
+            <thead className={`${tableHead} text-left text-xs uppercase tracking-wider ${textMuted}`}>
               <tr>
                 <th className="px-4 py-3">Linha</th>
                 <th className="px-4 py-3">Nome do cliente</th>
@@ -491,28 +556,36 @@ function AdminPage() {
                 <th className="px-4 py-3">Fecha ciclo</th>
                 <th className="px-4 py-3">Renovação</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Limiar (%)</th>
                 <th className="px-4 py-3">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f0f0f0]">
               {lines === null ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-10 text-center text-[#999]">
+                  <td colSpan={12} className="px-4 py-10 text-center text-[#999]">
                     Carregando…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-10 text-center text-[#999]">
+                  <td colSpan={12} className="px-4 py-10 text-center text-[#999]">
                     Nenhuma linha encontrada.
                   </td>
                 </tr>
               ) : (
                 filtered.map((l) => {
                   const pct = l.total > 0 ? (l.used / l.total) * 100 : 0;
+                  const inAlert =
+                    l.total > 0 &&
+                    l.threshold?.enabled &&
+                    l.used >=
+                      (l.threshold.warnGb != null
+                        ? l.threshold.warnGb
+                        : (l.threshold.warnPct / 100) * l.total);
                   return (
-                    <tr key={l.id}>
-                      <td className="px-4 py-3 font-medium text-[#333]">{l.number}</td>
+                    <tr key={l.id} className={inAlert ? "bg-[#FFF7ED]" : ""}>
+                      <td className={`px-4 py-3 font-medium ${textMain}`}>{l.number}</td>
                       <td className="px-4 py-3">
                         <Input
                           type="text"
@@ -546,7 +619,7 @@ function AdminPage() {
                           </SelectContent>
                         </Select>
                       </td>
-                      <td className="px-4 py-3 text-[#555]">{l.plan}</td>
+                      <td className={`px-4 py-3 ${textSub}`}>{l.plan}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-24 overflow-hidden rounded-full bg-[#eee]">
@@ -559,9 +632,10 @@ function AdminPage() {
                               }}
                             />
                           </div>
-                          <span className="text-xs text-[#666]">
+                          <span className={`text-xs ${d ? "text-[#aaa]" : "text-[#666]"}`}>
                             {l.used.toFixed(1)} / {(l.total + (l.bonusGb ?? 0)).toFixed(0)} GB ({pct.toFixed(0)}%)
                           </span>
+                          {inAlert && <Bell className="h-3.5 w-3.5 text-[#F97316]" />}
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -652,6 +726,22 @@ function AdminPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={1}
+                          defaultValue={l.threshold?.warnPct ?? 80}
+                          onBlur={(e) => {
+                            const v = Number(e.target.value);
+                            if (!Number.isNaN(v) && v !== (l.threshold?.warnPct ?? 80)) {
+                              updateThreshold(l, v);
+                            }
+                          }}
+                          className="w-16"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <Select
                             value={l.status}
@@ -707,7 +797,7 @@ function AdminPage() {
           </table>
         </div>
 
-        <p className="mt-4 text-xs text-[#999]">
+        <p className={`mt-4 text-xs ${textMuted}`}>
           Bloqueio é <strong>semiautomático</strong>: ao mudar o status aqui, o sistema avisa o
           cliente. Para bloquear de fato na Vivo, use o botão <em>Portal</em> (configure{" "}
           <code>vivo_portal_url</code> por linha no banco). O scraper atualiza o consumo a cada 5
@@ -722,11 +812,11 @@ function AdminPage() {
           onClick={() => setPwdModal(null)}
         >
           <div
-            className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+            className={`w-full max-w-md rounded-lg ${d ? "bg-[#242424]" : "bg-white"} p-6 shadow-xl`}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-lg font-semibold text-[#333]">Trocar senha</h2>
-            <p className="mt-1 text-sm text-[#888]">
+            <h2 className={`text-lg font-semibold ${textMain}`}>Trocar senha</h2>
+            <p className={`mt-1 text-sm ${textMuted}`}>
               Linha: <strong>{pwdModal.line.number}</strong> · Cliente: {pwdModal.line.clientName}
             </p>
             <div className="mt-4">

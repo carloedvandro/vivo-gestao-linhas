@@ -103,12 +103,17 @@ def check_threshold(db: SupabaseClient, line: dict, consumption: LineConsumption
     if not th_rows:
         return
     th = th_rows[0]
-    limit = th["warn_gb"] if th["warn_gb"] is not None else (float(th["warn_pct"]) / 100) * consumption.total_gb
+    # Usa total_gb do banco (definido pelo admin), nao do scraper (sempre 0)
+    total_gb = float(line["total_gb"]) if line.get("total_gb") else 0
+    if total_gb <= 0:
+        return  # sem franquia definida, nao da pra calcular
+
+    limit = th["warn_gb"] if th["warn_gb"] is not None else (float(th["warn_pct"]) / 100) * total_gb
 
     if consumption.used_gb < limit:
         return
 
-    pct = round((consumption.used_gb / consumption.total_gb) * 100, 2) if consumption.total_gb else 100
+    pct = round((consumption.used_gb / total_gb) * 100, 2)
 
     # evita re-disparar: busca alerta threshold nas últimas 24h pra essa linha
     recent = db.select(
@@ -124,7 +129,7 @@ def check_threshold(db: SupabaseClient, line: dict, consumption: LineConsumption
         return
 
     msg = (
-        f"Linha {line['number']}: {consumption.used_gb:.1f} GB de {consumption.total_gb:.0f} GB "
+        f"Linha {line['number']}: {consumption.used_gb:.1f} GB de {total_gb:.0f} GB "
         f"({pct:.1f}%) — atingiu o limiar de {limit:.1f} GB."
     )
     alert_rows = db.insert("alerts", [{
@@ -133,7 +138,7 @@ def check_threshold(db: SupabaseClient, line: dict, consumption: LineConsumption
         "kind": "threshold",
         "message": msg,
         "used_gb": consumption.used_gb,
-        "total_gb": consumption.total_gb,
+        "total_gb": total_gb,
         "pct": pct,
         "notified": False,
         "read": False,
