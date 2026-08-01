@@ -76,13 +76,11 @@ async def run_once() -> None:
                     "status": c.status,
                 }],
             )
-            # atualiza a linha
+            # atualiza a linha — NAO sobrescreve total_gb (definido pelo admin)
             db.update(
                 "lines",
                 {
                     "used_gb": c.used_gb,
-                    "total_gb": c.total_gb,
-                    "status": c.status,
                     "last_scraped_at": datetime.now(timezone.utc).isoformat(),
                     "vivo_line_id": c.vivo_line_id or None,
                 },

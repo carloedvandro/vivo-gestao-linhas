@@ -7,7 +7,6 @@ import {
   ExternalLink,
   Lock,
   Unlock,
-  Bell,
   Search,
   Trash2,
   Users,
@@ -16,7 +15,6 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import {
   adminListLines,
-  adminUpdateThreshold,
   adminUpdateLineStatus,
   adminUpdateLineTotal,
   adminAddBonusGb,
@@ -148,16 +146,6 @@ function AdminPage() {
   async function handleLogout() {
     await supabase.auth.signOut();
     window.location.href = "/login";
-  }
-
-  async function updateThreshold(line: AdminLine, warnPct: number) {
-    try {
-      await adminUpdateThreshold({ data: { lineId: line.id, warnPct } });
-      toast.success(`Limiar de ${line.number} atualizado para ${warnPct}%`);
-      load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro");
-    }
   }
 
   async function updateStatus(line: AdminLine, status: ClientLine["status"]) {
@@ -313,13 +301,6 @@ function AdminPage() {
 
   // métricas resumidas
   const total = lines?.length ?? 0;
-  const alerting = (lines ?? []).filter((l) => {
-    const pct = l.total > 0 ? (l.used / l.total) * 100 : 0;
-    const th = l.threshold;
-    if (!th || !th.enabled) return false;
-    const limit = th.warnGb != null ? th.warnGb : (th.warnPct / 100) * l.total;
-    return l.used >= limit;
-  }).length;
   const blocked = (lines ?? []).filter((l) => l.status.startsWith("bloqueada")).length;
 
   return (
@@ -364,16 +345,6 @@ function AdminPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-[#660099]">{total}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-1 text-sm font-medium text-[#888]">
-                <Bell className="h-3.5 w-3.5" /> Em alerta (limiar)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-[#F97316]">{alerting}</div>
             </CardContent>
           </Card>
           <Card>
@@ -520,34 +491,27 @@ function AdminPage() {
                 <th className="px-4 py-3">Fecha ciclo</th>
                 <th className="px-4 py-3">Renovação</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Limiar (%)</th>
                 <th className="px-4 py-3">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f0f0f0]">
               {lines === null ? (
                 <tr>
-                  <td colSpan={12} className="px-4 py-10 text-center text-[#999]">
+                  <td colSpan={11} className="px-4 py-10 text-center text-[#999]">
                     Carregando…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-4 py-10 text-center text-[#999]">
+                  <td colSpan={11} className="px-4 py-10 text-center text-[#999]">
                     Nenhuma linha encontrada.
                   </td>
                 </tr>
               ) : (
                 filtered.map((l) => {
                   const pct = l.total > 0 ? (l.used / l.total) * 100 : 0;
-                  const inAlert =
-                    l.threshold?.enabled &&
-                    l.used >=
-                      (l.threshold.warnGb != null
-                        ? l.threshold.warnGb
-                        : (l.threshold.warnPct / 100) * l.total);
                   return (
-                    <tr key={l.id} className={inAlert ? "bg-[#FFF7ED]" : ""}>
+                    <tr key={l.id}>
                       <td className="px-4 py-3 font-medium text-[#333]">{l.number}</td>
                       <td className="px-4 py-3">
                         <Input
@@ -598,7 +562,6 @@ function AdminPage() {
                           <span className="text-xs text-[#666]">
                             {l.used.toFixed(1)} / {(l.total + (l.bonusGb ?? 0)).toFixed(0)} GB ({pct.toFixed(0)}%)
                           </span>
-                          {inAlert && <Bell className="h-3.5 w-3.5 text-[#F97316]" />}
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -687,22 +650,6 @@ function AdminPage() {
                         >
                           {STATUS_LABELS[l.status]}
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Input
-                          type="number"
-                          min={0}
-                          max={100}
-                          step={0.5}
-                          defaultValue={l.threshold?.warnPct ?? 98}
-                          onBlur={(e) => {
-                            const v = Number(e.target.value);
-                            if (!Number.isNaN(v) && v !== (l.threshold?.warnPct ?? 98)) {
-                              updateThreshold(l, v);
-                            }
-                          }}
-                          className="w-20"
-                        />
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
