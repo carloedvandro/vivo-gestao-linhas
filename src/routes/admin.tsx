@@ -447,6 +447,14 @@ function AdminPage() {
           <h1 className={`text-lg font-semibold ${textMain}`}>Painel Administrativo</h1>
           <div className="ml-auto flex items-center gap-2">
             <button
+              onClick={() => navigate({ to: "/admin/financeiro" })}
+              className="flex items-center gap-1 rounded-md bg-[#660099] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#550080]"
+              title="Relatório Financeiro"
+            >
+              <FileDown className="h-4 w-4" />
+              <span className="hidden sm:inline">Financeiro</span>
+            </button>
+            <button
               onClick={toggleDarkMode}
               className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium ${textSub} ${hoverBg}`}
               title={d ? "Modo claro" : "Modo escuro"}
