@@ -174,11 +174,14 @@ export const adminListLines = createServerFn({ method: "GET" })
       (thresholds ?? []).map((t) => [t.line_id, t]),
     );
 
-    return (lines ?? []).map((l) => ({
-      ...mapLine(l, thMap.get(l.id) ?? null),
-      clientName: (l as unknown as { profiles?: { name: string | null } | null }).profiles?.name ?? "—",
-      userId: l.user_id,
-    }));
+    return (lines ?? []).map((l) => {
+      const profileName = (l as unknown as { profiles?: { name: string | null } | null }).profiles?.name ?? null;
+      return {
+        ...mapLine(l, thMap.get(l.id) ?? null),
+        clientName: l.client_name ?? profileName ?? "—",
+        userId: l.user_id,
+      };
+    });
   });
 
 // ---------------------------------------------------------------------------
