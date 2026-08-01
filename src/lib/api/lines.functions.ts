@@ -461,6 +461,101 @@ export const adminUpdateLineClientInfo = createServerFn({ method: "POST" })
   });
 
 // ---------------------------------------------------------------------------
+// Admin: CRUD de fornecedores (suppliers)
+// ---------------------------------------------------------------------------
+export const adminListSuppliers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", userId)
+      .single();
+    if (!profile?.is_admin) throw new Error("Forbidden: admin only");
+
+    const { data: suppliers, error } = await supabase
+      .from("suppliers")
+      .select("*")
+      .order("name");
+    if (error) throw new Error(error.message);
+    return suppliers ?? [];
+  });
+
+export const adminCreateSupplier = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      name: z.string().min(1).max(200),
+      email: z.string().email().nullable().optional(),
+      phone: z.string().nullable().optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", userId)
+      .single();
+    if (!profile?.is_admin) throw new Error("Forbidden: admin only");
+
+    const { data: supplier, error } = await supabase
+      .from("suppliers")
+      .insert({ name: data.name, email: data.email ?? null, phone: data.phone ?? null })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return supplier;
+  });
+
+export const adminUpdateSupplier = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      id: z.string().uuid(),
+      name: z.string().min(1).max(200).optional(),
+      email: z.string().email().nullable().optional(),
+      phone: z.string().nullable().optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", userId)
+      .single();
+    if (!profile?.is_admin) throw new Error("Forbidden: admin only");
+
+    const update: Database["public"]["Tables"]["suppliers"]["Update"] = {};
+    if (data.name !== undefined) update.name = data.name;
+    if (data.email !== undefined) update.email = data.email;
+    if (data.phone !== undefined) update.phone = data.phone;
+
+    const { error } = await supabase.from("suppliers").update(update).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminDeleteSupplier = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ id: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", userId)
+      .single();
+    if (!profile?.is_admin) throw new Error("Forbidden: admin only");
+
+    const { error } = await supabase.from("suppliers").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
 function mapLine(l: LineRow, t: ThresholdRow | null): ClientLine {

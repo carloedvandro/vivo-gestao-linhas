@@ -121,6 +121,32 @@ export type Database = {
         }
         Relationships: []
       }
+      suppliers: {
+        Row: {
+          id: string
+          name: string
+          email: string | null
+          phone: string | null
+          user_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          email?: string | null
+          phone?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          email?: string | null
+          phone?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       consumption_snapshots: {
         Row: {
           id: string

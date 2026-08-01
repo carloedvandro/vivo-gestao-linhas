@@ -9,6 +9,8 @@ import {
   Unlock,
   Bell,
   Search,
+  Trash2,
+  Users,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +24,10 @@ import {
   adminUpdateCycleDays,
   adminUpdateUserPassword,
   adminUpdateLineClientInfo,
+  adminListSuppliers,
+  adminCreateSupplier,
+  adminUpdateSupplier,
+  adminDeleteSupplier,
   type ClientLine,
 } from "@/lib/api/lines.functions";
 import { Button } from "@/components/ui/button";
@@ -37,7 +43,16 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
-type AdminLine = ClientLine & { clientName: string; userId: string | null };
+type AdminLine = ClientLine & { clientName: string | null; groupName: string | null; userId: string | null };
+
+type Supplier = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  user_id: string | null;
+  created_at: string;
+};
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -87,12 +102,18 @@ function AdminPage() {
   const [pwdModal, setPwdModal] = useState<{ line: AdminLine } | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [pwdLoading, setPwdLoading] = useState(false);
+  const [suppliers, setSuppliers] = useState<Supplier[] | null>(null);
+  const [showSupplierForm, setShowSupplierForm] = useState(false);
+  const [supplierForm, setSupplierForm] = useState({ name: "", email: "", phone: "" });
+  const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
     try {
       const data = await adminListLines();
       setLines(data as AdminLine[]);
+      const sups = await adminListSuppliers();
+      setSuppliers(sups as Supplier[]);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao carregar");
     } finally {
@@ -218,7 +239,53 @@ function AdminPage() {
       await adminUpdateLineClientInfo({
         data: { lineId: line.id, [field]: value || null },
       });
-      toast.success(`${line.number}: ${field === "clientName" ? "nome" : "grupo"} atualizado`);
+      toast.success(`${line.number}: ${field === "clientName" ? "nome" : "fornecedor"} atualizado`);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    }
+  }
+
+  async function saveSupplier() {
+    if (!supplierForm.name.trim()) {
+      toast.error("Nome do fornecedor é obrigatório");
+      return;
+    }
+    try {
+      if (editingSupplierId) {
+        await adminUpdateSupplier({
+          data: {
+            id: editingSupplierId,
+            name: supplierForm.name.trim(),
+            email: supplierForm.email.trim() || null,
+            phone: supplierForm.phone.trim() || null,
+          },
+        });
+        toast.success("Fornecedor atualizado");
+      } else {
+        await adminCreateSupplier({
+          data: {
+            name: supplierForm.name.trim(),
+            email: supplierForm.email.trim() || null,
+            phone: supplierForm.phone.trim() || null,
+          },
+        });
+        toast.success("Fornecedor criado");
+      }
+      setSupplierForm({ name: "", email: "", phone: "" });
+      setEditingSupplierId(null);
+      setShowSupplierForm(false);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    }
+  }
+
+  async function deleteSupplier(id: string, name: string) {
+    if (!confirm(`Excluir fornecedor "${name}"?`)) return;
+    try {
+      await adminDeleteSupplier({ data: { id } });
+      toast.success("Fornecedor excluído");
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro");
@@ -321,12 +388,116 @@ function AdminPage() {
           </Card>
         </div>
 
+        {/* fornecedores */}
+        <div className="mt-6 rounded-lg border border-[#eee] bg-white p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-[#333]">
+              <Users className="h-4 w-4 text-[#660099]" />
+              Fornecedores
+            </h2>
+            <button
+              onClick={() => {
+                setEditingSupplierId(null);
+                setSupplierForm({ name: "", email: "", phone: "" });
+                setShowSupplierForm(!showSupplierForm);
+              }}
+              className="flex items-center gap-1 rounded-md bg-[#660099] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#7a00b8]"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Novo fornecedor
+            </button>
+          </div>
+
+          {showSupplierForm && (
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <Label className="text-xs text-[#888]">Nome *</Label>
+                <Input
+                  value={supplierForm.name}
+                  onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })}
+                  placeholder="Ex: Oliveira"
+                  className="mt-1"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-[#888]">E-mail</Label>
+                <Input
+                  type="email"
+                  value={supplierForm.email}
+                  onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })}
+                  placeholder="fornecedor@email.com"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-[#888]">Telefone</Label>
+                <Input
+                  value={supplierForm.phone}
+                  onChange={(e) => setSupplierForm({ ...supplierForm, phone: e.target.value })}
+                  placeholder="(11) 99999-9999"
+                  className="mt-1"
+                />
+              </div>
+              <div className="col-span-full flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowSupplierForm(false);
+                    setEditingSupplierId(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={saveSupplier}
+                  className="bg-[#660099] text-white hover:bg-[#7a00b8]"
+                >
+                  {editingSupplierId ? "Salvar" : "Criar fornecedor"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {suppliers && suppliers.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {suppliers.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center gap-2 rounded-full border border-[#e0d4ed] bg-[#f8f5fc] px-3 py-1.5"
+                >
+                  <span className="text-xs font-medium text-[#660099]">{s.name}</span>
+                  {s.email && <span className="text-xs text-[#999]">· {s.email}</span>}
+                  <button
+                    onClick={() => {
+                      setEditingSupplierId(s.id);
+                      setSupplierForm({ name: s.name, email: s.email ?? "", phone: s.phone ?? "" });
+                      setShowSupplierForm(true);
+                    }}
+                    className="text-xs text-[#888] hover:text-[#660099]"
+                    title="Editar"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    onClick={() => deleteSupplier(s.id, s.name)}
+                    className="text-xs text-[#ccc] hover:text-[#DC2626]"
+                    title="Excluir"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* filtro */}
         <div className="mt-6 flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#999]" />
             <Input
-              placeholder="Buscar por número, plano ou cliente…"
+              placeholder="Buscar por número, plano, cliente ou fornecedor…"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               className="pl-9"
@@ -335,13 +506,13 @@ function AdminPage() {
         </div>
 
         {/* tabela */}
-        <div className="mt-4 overflow-hidden rounded-lg border border-[#eee] bg-white">
-          <table className="w-full text-sm">
+        <div className="mt-4 overflow-x-auto rounded-lg border border-[#eee] bg-white">
+          <table className="w-full min-w-[1400px] text-sm whitespace-nowrap">
             <thead className="bg-[#fafafa] text-left text-xs uppercase tracking-wider text-[#888]">
               <tr>
                 <th className="px-4 py-3">Linha</th>
                 <th className="px-4 py-3">Nome do cliente</th>
-                <th className="px-4 py-3">Grupo</th>
+                <th className="px-4 py-3">Fornecedor</th>
                 <th className="px-4 py-3">Plano</th>
                 <th className="px-4 py-3">Consumo</th>
                 <th className="px-4 py-3">Franquia (GB)</th>
@@ -392,17 +563,24 @@ function AdminPage() {
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <Input
-                          type="text"
-                          defaultValue={l.groupName ?? ""}
-                          placeholder="Grupo"
-                          onBlur={(e) => {
-                            if (e.target.value !== (l.groupName ?? "")) {
-                              updateClientInfo(l, "groupName", e.target.value);
-                            }
+                        <Select
+                          value={l.groupName ?? "__none__"}
+                          onValueChange={(v) => {
+                            updateClientInfo(l, "groupName", v === "__none__" ? "" : v);
                           }}
-                          className="w-32"
-                        />
+                        >
+                          <SelectTrigger className="h-8 w-[140px]">
+                            <SelectValue placeholder="Sem fornecedor" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Sem fornecedor</SelectItem>
+                            {(suppliers ?? []).map((s) => (
+                              <SelectItem key={s.id} value={s.name}>
+                                {s.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </td>
                       <td className="px-4 py-3 text-[#555]">{l.plan}</td>
                       <td className="px-4 py-3">
