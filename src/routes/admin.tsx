@@ -83,15 +83,21 @@ export const Route = createFileRoute("/admin")({
   beforeLoad: async () => {
     // No SSR (server) não há localStorage; skip — o componente verifica no cliente.
     if (typeof window === "undefined") return;
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) throw redirect({ to: "/login" });
-    // valida admin
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", data.session.user.id)
-      .single();
-    if (!prof?.is_admin) throw redirect({ to: "/" });
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) throw redirect({ to: "/login" });
+      // valida admin
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", data.session.user.id)
+        .single();
+      if (!prof?.is_admin) throw redirect({ to: "/" });
+    } catch (err) {
+      if (err && typeof err === "object" && "to" in err) throw err; // re-throw redirect
+      try { await supabase.auth.signOut(); } catch {}
+      throw redirect({ to: "/login" });
+    }
   },
   component: AdminPage,
 });
@@ -158,22 +164,27 @@ function AdminPage() {
   useEffect(() => {
     // Verifica auth no cliente (cobre acesso direto via URL / full page reload)
     (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          navigate({ to: "/login" });
+          return;
+        }
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("is_admin")
+          .eq("id", data.session.user.id)
+          .single();
+        if (!prof?.is_admin) {
+          navigate({ to: "/" });
+          return;
+        }
+        setAuthChecked(true);
+        load();
+      } catch {
+        try { await supabase.auth.signOut(); } catch {}
         navigate({ to: "/login" });
-        return;
       }
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("is_admin")
-        .eq("id", data.session.user.id)
-        .single();
-      if (!prof?.is_admin) {
-        navigate({ to: "/" });
-        return;
-      }
-      setAuthChecked(true);
-      load();
     })();
     const i = window.setInterval(load, 60_000);
     return () => window.clearInterval(i);

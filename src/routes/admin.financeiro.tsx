@@ -45,14 +45,20 @@ export const Route = createFileRoute("/admin/financeiro")({
   }),
   beforeLoad: async () => {
     if (typeof window === "undefined") return;
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) throw redirect({ to: "/login" });
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", data.session.user.id)
-      .single();
-    if (!prof?.is_admin) throw redirect({ to: "/" });
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) throw redirect({ to: "/login" });
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", data.session.user.id)
+        .single();
+      if (!prof?.is_admin) throw redirect({ to: "/" });
+    } catch (err) {
+      if (err && typeof err === "object" && "to" in err) throw err; // re-throw redirect
+      try { await supabase.auth.signOut(); } catch {}
+      throw redirect({ to: "/login" });
+    }
   },
   component: FinanceiroPage,
 });

@@ -61,8 +61,15 @@ export const Route = createFileRoute("/")({
   beforeLoad: async () => {
     // No SSR (server) não há localStorage; skip — o componente verifica no cliente.
     if (typeof window === "undefined") return;
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) {
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        throw redirect({ to: "/login" });
+      }
+    } catch (err) {
+      if (err && typeof err === "object" && "to" in err) throw err; // re-throw redirect
+      // Token invalido/expirado — limpa e redireciona
+      try { await supabase.auth.signOut(); } catch {}
       throw redirect({ to: "/login" });
     }
   },
@@ -571,12 +578,17 @@ function ResumoConsumo() {
     });
     // Verifica auth no cliente (cobre acesso direto via URL / full page reload)
     (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          window.location.href = "/login";
+          return;
+        }
+        loadLines();
+      } catch {
+        try { await supabase.auth.signOut(); } catch {}
         window.location.href = "/login";
-        return;
       }
-      loadLines();
     })();
     // PWA: registra service worker + push notifications
     registerServiceWorkerAndPush();
