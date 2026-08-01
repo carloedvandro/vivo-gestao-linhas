@@ -1115,14 +1115,14 @@ function AdminPage() {
                         <input
                           defaultValue={l.plan}
                           onBlur={(e) => updateField(l, "plan", e.target.value)}
-                          className={`w-full rounded border px-2 py-1 text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
+                          className={`w-40 rounded border px-2 py-1 text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
                         />
                       </td>
                       <td className="px-4 py-3">
                         <input
                           defaultValue={l.iccid ?? ""}
                           onBlur={(e) => updateField(l, "iccid", e.target.value || null)}
-                          className={`w-full rounded border px-2 py-1 font-mono text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
+                          className={`w-44 rounded border px-2 py-1 font-mono text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
                         />
                       </td>
                       <td className="px-4 py-3">
@@ -1139,7 +1139,7 @@ function AdminPage() {
                           step="0.01"
                           defaultValue={l.monthlyValue ?? ""}
                           onBlur={(e) => updateField(l, "monthlyValue", e.target.value === "" ? null : parseFloat(e.target.value))}
-                          className={`w-full rounded border px-2 py-1 text-xs font-medium ${
+                          className={`w-24 rounded border px-2 py-1 text-xs font-medium ${
                             l.paymentStatus === "pago" ? "text-[#16A34A]"
                             : l.paymentStatus === "aguardando" ? "text-[#EAB308]"
                             : l.paymentStatus === "vencido" ? "text-[#DC2626]"
@@ -1186,7 +1186,7 @@ function AdminPage() {
                           step="0.01"
                           defaultValue={l.vivoRepass ?? ""}
                           onBlur={(e) => updateField(l, "vivoRepass", e.target.value === "" ? null : parseFloat(e.target.value))}
-                          className={`w-full rounded border px-2 py-1 text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
+                          className={`w-24 rounded border px-2 py-1 text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
                         />
                       </td>
                       <td className="px-4 py-3">
@@ -1195,14 +1195,14 @@ function AdminPage() {
                           step="0.01"
                           defaultValue={l.repass ?? ""}
                           onBlur={(e) => updateField(l, "repass", e.target.value === "" ? null : parseFloat(e.target.value))}
-                          className={`w-full rounded border px-2 py-1 text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
+                          className={`w-24 rounded border px-2 py-1 text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
                         />
                       </td>
                       <td className="px-4 py-3">
                         <input
                           defaultValue={l.acerto ?? ""}
                           onBlur={(e) => updateField(l, "acerto", e.target.value || null)}
-                          className={`w-full rounded border px-2 py-1 text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
+                          className={`w-32 rounded border px-2 py-1 text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
                         />
                       </td>
                       <td className="px-4 py-3">
