@@ -24,7 +24,7 @@ import {
   Bell,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getMyLines, type ClientLine, type LineStatus } from "@/lib/api/lines.functions";
+import { getMyLines, getMyAlerts, type ClientLine, type LineStatus } from "@/lib/api/lines.functions";
 import { registerServiceWorkerAndPush } from "@/lib/push";
 
 import icon3dData from "@/assets/icon-3d-data.png";
@@ -514,6 +514,8 @@ function ResumoConsumo() {
 
   // --- Dados reais do Supabase ---
   const [lines, setLines] = useState<ClientLine[] | null>(null);
+  const [alerts, setAlerts] = useState<{ id: string; message: string; pct: number | null; created_at: string; read: boolean }[]>([]);
+  const [showAlerts, setShowAlerts] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [profileName, setProfileName] = useState<string>("");
   const [isAdmin, setIsAdmin] = useState(false);
@@ -533,6 +535,13 @@ function ResumoConsumo() {
       }
       setLines(data);
       setLastRefresh(new Date());
+      // Carregar alertas
+      try {
+        const alertData = await getMyAlerts();
+        setAlerts(alertData as typeof alerts);
+      } catch {
+        // ignora erro de alertas
+      }
       const { data: u } = await supabase.auth.getUser();
       if (u.user) {
         // Prioriza o client_name definido pelo admin; fallback para user_metadata
@@ -810,7 +819,7 @@ function ResumoConsumo() {
             >
               {lines.map((l, i) => (
                 <option key={l.id} value={i}>
-                  {l.number} — {l.plan}
+                  {l.number}
                 </option>
               ))}
             </select>
@@ -825,6 +834,37 @@ function ResumoConsumo() {
               <RefreshCw className="h-4 w-4" />
               <span className="hidden sm:inline">Atualizar</span>
             </button>
+            {alerts.length > 0 && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowAlerts(!showAlerts)}
+                  className="relative flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-[#555] hover:bg-[#f3f3f3]"
+                  title="Alertas"
+                >
+                  <Bell className="h-4 w-4" />
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#F97316] text-[10px] font-bold text-white">
+                    {alerts.filter(a => !a.read).length}
+                  </span>
+                </button>
+                {showAlerts && (
+                  <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-lg border border-[#eee] bg-white shadow-xl">
+                    <div className="border-b border-[#eee] px-4 py-2 text-sm font-semibold text-[#333]">
+                      Alertas
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {alerts.map((a) => (
+                        <div key={a.id} className={`border-b border-[#f5f5f5] px-4 py-3 ${a.read ? "opacity-60" : ""}`}>
+                          <p className="text-sm text-[#333]">{a.message}</p>
+                          <p className="mt-1 text-xs text-[#999]">
+                            {new Date(a.created_at).toLocaleString("pt-BR")}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {isAdmin && (
               <Link
                 to="/admin"
@@ -884,7 +924,7 @@ function ResumoConsumo() {
 
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-[15px] font-semibold tracking-wide text-[#1a1a1a]">
-                    {baseLine.plan}
+                    {baseLine.clientName || baseLine.number}
                   </h2>
                   {bonusDebito > 0 && (
                     <span className="inline-flex items-center rounded-full bg-[#16a34a]/15 px-2 py-0.5 text-[10px] font-semibold text-[#15803d] ring-1 ring-[#16a34a]/30 animate-fade-in">
@@ -1506,8 +1546,8 @@ function ResumoConsumo() {
           <ConsumoRing line={line} />
           <div className="w-full space-y-2 text-sm">
             <div className="flex justify-between border-b border-[#eee] pb-2">
-              <span className="text-[#666]">Plano</span>
-              <span className="font-semibold text-[#660099]">{line.plan}</span>
+              <span className="text-[#666]">Cliente</span>
+              <span className="font-semibold text-[#660099]">{line.clientName || "—"}</span>
             </div>
             <div className="flex justify-between border-b border-[#eee] pb-2">
               <span className="text-[#666]">Linha</span>
@@ -1611,9 +1651,9 @@ function ResumoConsumo() {
                   </span>
                 </div>
                 <div className="flex justify-between border-t border-[#f0f0f0] py-1.5">
-                  <span className="text-[#666]">Plano</span>
+                  <span className="text-[#666]">Cliente</span>
                   <span className="font-semibold text-[#1a1a1a]">
-                    {baseLine.plan}
+                    {baseLine.clientName || baseLine.number}
                   </span>
                 </div>
                 <div className="flex justify-between border-t border-[#f0f0f0] py-1.5">
