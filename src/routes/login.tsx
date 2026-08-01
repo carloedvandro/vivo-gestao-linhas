@@ -41,7 +41,7 @@ function normalizeLineNumber(raw: string): string {
 
 // Email sintético derivado do celular — o Supabase Auth exige um email internamente
 function phoneToEmail(phone: string): string {
-  return `${normalizePhone(phone)}@vivo.local`;
+  return `${normalizeLineNumber(phone)}@vivo.local`;
 }
 
 type Role = "cliente" | "admin";
