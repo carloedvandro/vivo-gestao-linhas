@@ -15,6 +15,7 @@ import {
   Sun,
   Moon,
   FileDown,
+  Upload,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +30,7 @@ import {
   adminUpdateUserPassword,
   adminUpdateLineClientInfo,
   adminUpdatePaymentStatus,
+  adminCreateLine,
   adminListSuppliers,
   adminCreateSupplier,
   adminUpdateSupplier,
@@ -133,6 +135,11 @@ function AdminPage() {
   const [supplierForm, setSupplierForm] = useState({ name: "", email: "", phone: "" });
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
   const [view, setView] = useState<"admin" | "financeiro">("admin");
+  const [showAddLine, setShowAddLine] = useState(false);
+  const [newLine, setNewLine] = useState({ number: "", clientName: "", groupName: "", plan: "", totalGb: "130", closingDay: "1", renewalDay: "2" });
+  const [showImport, setShowImport] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importing, setImporting] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("admin-dark") === "true";
@@ -289,6 +296,133 @@ function AdminPage() {
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro");
+    }
+  }
+
+  async function updateField(line: AdminLine, field: string, value: string | number | null) {
+    try {
+      await adminUpdateLineClientInfo({
+        data: { lineId: line.id, [field]: value } as Record<string, unknown>,
+      } as never);
+      toast.success(`${line.number}: ${field} atualizado`);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    }
+  }
+
+  async function createLine() {
+    if (!newLine.number.trim()) { toast.error("Número da linha é obrigatório"); return; }
+    try {
+      await adminCreateLine({
+        data: {
+          number: newLine.number.replace(/\D/g, ""),
+          clientName: newLine.clientName || null,
+          groupName: newLine.groupName || null,
+          plan: newLine.plan || null,
+          totalGb: parseFloat(newLine.totalGb) || 130,
+          closingDay: parseInt(newLine.closingDay) || 1,
+          renewalDay: parseInt(newLine.renewalDay) || 2,
+        },
+      } as never);
+      toast.success(`Linha ${newLine.number} criada com sucesso`);
+      setShowAddLine(false);
+      setNewLine({ number: "", clientName: "", groupName: "", plan: "", totalGb: "130", closingDay: "1", renewalDay: "2" });
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar linha");
+    }
+  }
+
+  async function importCSV() {
+    if (!importText.trim()) { toast.error("Cole o conteúdo da planilha CSV"); return; }
+    setImporting(true);
+    try {
+      const lines = importText.trim().split("\n");
+      // Pular header (primeira linha)
+      const dataLines = lines.slice(1);
+      let ok = 0, err = 0;
+      for (const row of dataLines) {
+        const cols = row.split(/[\t,;]/);
+        if (cols.length < 2 || !cols[1]?.trim()) continue;
+        const nome = cols[0]?.trim() || "";
+        const numero = cols[1]?.trim().replace(/\D/g, "");
+        if (!numero) continue;
+        const franquia = cols[3]?.trim() || "";
+        const plano = cols[4]?.trim() || "";
+        const ativacao = cols[5]?.trim() || "";
+        const valor = cols[6]?.trim() || "";
+        const vencimento = cols[7]?.trim() || "";
+        const formaPag = cols[8]?.trim() || "";
+        const repaseVivo = cols[9]?.trim() || "";
+        const fornecedor = cols[10]?.trim() || "";
+        const gestor = cols[11]?.trim() || "";
+        const repasse = cols[12]?.trim() || "";
+        const acerto = cols[13]?.trim() || "";
+
+        // Parse franquia
+        let totalGb = 130;
+        const nums = franquia.match(/\d+/g);
+        if (nums) {
+          if (franquia.includes("+") && nums.length >= 2) totalGb = parseInt(nums[0]) + parseInt(nums[1]);
+          else totalGb = parseInt(nums[0]);
+        }
+
+        // Parse valor
+        const valorNum = valor ? parseFloat(valor.replace(/R\$|\s|\./g, "").replace(",", ".")) : null;
+        const repaseVivoNum = repaseVivo ? parseFloat(repaseVivo.replace(/R\$|\s|\./g, "").replace(",", ".")) : null;
+        const repasseNum = repasse ? parseFloat(repasse.replace(/R\$|\s|\./g, "").replace(",", ".")) : null;
+
+        // Parse data
+        let activationDate = null;
+        if (ativacao && ativacao !== "---") {
+          const parts = ativacao.split("/");
+          if (parts.length === 3) activationDate = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+        }
+
+        // Parse vencimento -> due_day
+        let dueDay = null;
+        if (vencimento && vencimento !== "---") {
+          const parts = vencimento.split("/");
+          if (parts.length >= 1) dueDay = parseInt(parts[0]);
+        }
+
+        // Status
+        const status = gestor.toLowerCase().includes("bloqueado") ? "bloqueada_fatura" : "ativa";
+
+        try {
+          // Upsert na tabela lines
+          const { error } = await supabase.from("lines").upsert({
+            number: numero,
+            client_name: nome || null,
+            group_name: fornecedor || null,
+            plan: plano || "",
+            total_gb: totalGb,
+            status,
+            activation_date: activationDate,
+            monthly_value: valorNum,
+            due_day: dueDay,
+            payment_method: formaPag || null,
+            vivo_repass: repaseVivoNum,
+            repass: repasseNum,
+            acerto: acerto || null,
+            cycle_closing_day: dueDay ?? 1,
+            cycle_renewal_day: dueDay ? (dueDay >= 28 ? dueDay : dueDay + 1) : 2,
+          }, { onConflict: "number" });
+          if (error) throw error;
+          ok++;
+        } catch (e) {
+          err++;
+        }
+      }
+      toast.success(`Importação concluída: ${ok} linhas atualizadas${err > 0 ? `, ${err} erros` : ""}`);
+      setShowImport(false);
+      setImportText("");
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao importar");
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -872,6 +1006,22 @@ function AdminPage() {
             <FileDown className="h-4 w-4" />
             <span className="hidden sm:inline">Gerar PDF</span>
           </button>
+          <button
+            onClick={() => setShowAddLine(true)}
+            className="flex items-center gap-1 rounded-md bg-[#16A34A] px-3 py-2 text-sm font-medium text-white hover:bg-[#15803D]"
+            title="Adicionar nova linha"
+          >
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Nova linha</span>
+          </button>
+          <button
+            onClick={() => setShowImport(true)}
+            className="flex items-center gap-1 rounded-md bg-[#2563EB] px-3 py-2 text-sm font-medium text-white hover:bg-[#1D4ED8]"
+            title="Importar planilha CSV"
+          >
+            <Upload className="h-4 w-4" />
+            <span className="hidden sm:inline">Importar</span>
+          </button>
         </div>
 
         {/* tabela */}
@@ -886,9 +1036,9 @@ function AdminPage() {
                 <th className="px-4 py-3">ICCID</th>
                 <th className="px-4 py-3">Ativação</th>
                 <th className="px-4 py-3">Valor</th>
-                <th className="px-4 py-3">Pagamento</th>
+                <th className="px-4 py-3">Situação</th>
                 <th className="px-4 py-3">Venc.</th>
-                <th className="px-4 py-3">Pagamento</th>
+                <th className="px-4 py-3">Form. de pagamento</th>
                 <th className="px-4 py-3">Repasse Vivo</th>
                 <th className="px-4 py-3">Repasse</th>
                 <th className="px-4 py-3">Acerto</th>
@@ -961,22 +1111,49 @@ function AdminPage() {
                           </SelectContent>
                         </Select>
                       </td>
-                      <td className={`px-4 py-3 ${textSub}`}>{l.plan}</td>
-                      <td className={`px-4 py-3 font-mono text-xs ${d ? "text-[#888]" : "text-[#666]"}`}>{l.iccid ?? "—"}</td>
-                      <td className={`px-4 py-3 ${textSub}`}>{l.activationDate ? new Date(l.activationDate).toLocaleDateString("pt-BR") : "—"}</td>
-                      <td className={`px-4 py-3 font-medium ${
-                        l.paymentStatus === "pago" ? "text-[#16A34A] bg-[#16A34A]/10"
-                        : l.paymentStatus === "aguardando" ? "text-[#EAB308] bg-[#EAB308]/10"
-                        : l.paymentStatus === "vencido" ? "text-[#DC2626] bg-[#DC2626]/10"
-                        : textSub
-                      }`}>{l.monthlyValue != null ? `R$ ${l.monthlyValue.toFixed(2).replace(".", ",")}` : "—"}</td>
+                      <td className="px-4 py-3">
+                        <input
+                          defaultValue={l.plan}
+                          onBlur={(e) => updateField(l, "plan", e.target.value)}
+                          className={`w-full rounded border px-2 py-1 text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          defaultValue={l.iccid ?? ""}
+                          onBlur={(e) => updateField(l, "iccid", e.target.value || null)}
+                          className={`w-full rounded border px-2 py-1 font-mono text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="date"
+                          defaultValue={l.activationDate ? l.activationDate.split("T")[0] : ""}
+                          onBlur={(e) => updateField(l, "activationDate", e.target.value || null)}
+                          className={`w-full rounded border px-2 py-1 text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="number"
+                          step="0.01"
+                          defaultValue={l.monthlyValue ?? ""}
+                          onBlur={(e) => updateField(l, "monthlyValue", e.target.value === "" ? null : parseFloat(e.target.value))}
+                          className={`w-full rounded border px-2 py-1 text-xs font-medium ${
+                            l.paymentStatus === "pago" ? "text-[#16A34A]"
+                            : l.paymentStatus === "aguardando" ? "text-[#EAB308]"
+                            : l.paymentStatus === "vencido" ? "text-[#DC2626]"
+                            : d ? "text-[#e0e0e0]" : "text-[#555]"
+                          } ${d ? "bg-[#1a1a1a] border-[#444]" : "bg-white border-[#ddd]"}`}
+                        />
+                      </td>
                       <td className="px-4 py-3">
                         <select
                           value={l.paymentStatus}
                           onChange={async (e) => {
                             try {
                               await adminUpdatePaymentStatus({ data: { lineId: l.id, paymentStatus: e.target.value as "a_pagar" | "pago" | "aguardando" | "vencido" } });
-                              toast.success(`${l.number}: status de pagamento atualizado`);
+                              toast.success(`${l.number}: situação atualizada`);
                               load();
                             } catch (err) {
                               toast.error(err instanceof Error ? err.message : "Erro");
@@ -996,10 +1173,38 @@ function AdminPage() {
                         </select>
                       </td>
                       <td className={`px-4 py-3 ${textSub}`}>{l.dueDay ?? "—"}</td>
-                      <td className={`px-4 py-3 ${textSub}`}>{l.paymentMethod ?? "—"}</td>
-                      <td className={`px-4 py-3 ${textSub}`}>{l.vivoRepass != null ? `R$ ${l.vivoRepass.toFixed(2).replace(".", ",")}` : "—"}</td>
-                      <td className={`px-4 py-3 ${textSub}`}>{l.repass != null ? `R$ ${l.repass.toFixed(2).replace(".", ",")}` : "—"}</td>
-                      <td className={`px-4 py-3 ${textSub}`}>{l.acerto ?? "—"}</td>
+                      <td className="px-4 py-3">
+                        <input
+                          defaultValue={l.paymentMethod ?? ""}
+                          onBlur={(e) => updateField(l, "paymentMethod", e.target.value || null)}
+                          className={`w-full rounded border px-2 py-1 text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="number"
+                          step="0.01"
+                          defaultValue={l.vivoRepass ?? ""}
+                          onBlur={(e) => updateField(l, "vivoRepass", e.target.value === "" ? null : parseFloat(e.target.value))}
+                          className={`w-full rounded border px-2 py-1 text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="number"
+                          step="0.01"
+                          defaultValue={l.repass ?? ""}
+                          onBlur={(e) => updateField(l, "repass", e.target.value === "" ? null : parseFloat(e.target.value))}
+                          className={`w-full rounded border px-2 py-1 text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          defaultValue={l.acerto ?? ""}
+                          onBlur={(e) => updateField(l, "acerto", e.target.value || null)}
+                          className={`w-full rounded border px-2 py-1 text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "bg-white border-[#ddd] text-[#555]"}`}
+                        />
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-24 overflow-hidden rounded-full bg-[#eee]">
@@ -1186,6 +1391,80 @@ function AdminPage() {
         </>
         )}
       </main>
+
+      {/* Modal Nova Linha */}
+      {showAddLine && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={() => setShowAddLine(false)}>
+          <div className={`w-full max-w-lg rounded-lg border p-6 ${d ? "bg-[#242424] border-[#444]" : "bg-white border-[#ddd]"}`} onClick={(e) => e.stopPropagation()}>
+            <h3 className={`mb-4 text-lg font-semibold ${textMain}`}>Adicionar Nova Linha</h3>
+            <div className="space-y-3">
+              <div>
+                <label className={`mb-1 block text-xs ${textMuted}`}>Número da linha *</label>
+                <input value={newLine.number} onChange={(e) => setNewLine({ ...newLine, number: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} placeholder="11999999999" />
+              </div>
+              <div>
+                <label className={`mb-1 block text-xs ${textMuted}`}>Nome do cliente</label>
+                <input value={newLine.clientName} onChange={(e) => setNewLine({ ...newLine, clientName: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} />
+              </div>
+              <div>
+                <label className={`mb-1 block text-xs ${textMuted}`}>Fornecedor</label>
+                <select value={newLine.groupName} onChange={(e) => setNewLine({ ...newLine, groupName: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`}>
+                  <option value="">—</option>
+                  {(suppliers ?? []).map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`mb-1 block text-xs ${textMuted}`}>Plano</label>
+                  <input value={newLine.plan} onChange={(e) => setNewLine({ ...newLine, plan: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} />
+                </div>
+                <div>
+                  <label className={`mb-1 block text-xs ${textMuted}`}>Franquia (GB)</label>
+                  <input type="number" value={newLine.totalGb} onChange={(e) => setNewLine({ ...newLine, totalGb: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} />
+                </div>
+                <div>
+                  <label className={`mb-1 block text-xs ${textMuted}`}>Fecha ciclo (dia)</label>
+                  <input type="number" min={1} max={28} value={newLine.closingDay} onChange={(e) => setNewLine({ ...newLine, closingDay: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} />
+                </div>
+                <div>
+                  <label className={`mb-1 block text-xs ${textMuted}`}>Renovação (dia)</label>
+                  <input type="number" min={1} max={28} value={newLine.renewalDay} onChange={(e) => setNewLine({ ...newLine, renewalDay: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} />
+                </div>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setShowAddLine(false)} className={`rounded-md px-4 py-2 text-sm ${textSub} ${hoverBg}`}>Cancelar</button>
+              <button onClick={createLine} className="rounded-md bg-[#16A34A] px-4 py-2 text-sm font-medium text-white hover:bg-[#15803D]">Criar linha</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Importar Planilha */}
+      {showImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={() => setShowImport(false)}>
+          <div className={`w-full max-w-2xl rounded-lg border p-6 ${d ? "bg-[#242424] border-[#444]" : "bg-white border-[#ddd]"}`} onClick={(e) => e.stopPropagation()}>
+            <h3 className={`mb-2 text-lg font-semibold ${textMain}`}>Importar Planilha</h3>
+            <p className={`mb-4 text-xs ${textMuted}`}>
+              Cole o conteúdo da planilha (CSV, tab ou ponto-e-vírgula). A primeira linha deve ser o cabeçalho e será ignorada.
+              Colunas: Cliente, Número, ICCID, Franquia, Plano, Ativação, Valor, Vencimento, Forma Pagamento, Repasse Vivo, Fornecedor, Gestor, Repasse, Acerto.
+            </p>
+            <textarea
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              rows={12}
+              placeholder="Cole aqui o conteúdo da planilha..."
+              className={`w-full rounded border px-3 py-2 font-mono text-xs ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`}
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setShowImport(false)} className={`rounded-md px-4 py-2 text-sm ${textSub} ${hoverBg}`}>Cancelar</button>
+              <button onClick={importCSV} disabled={importing} className="rounded-md bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#1D4ED8] disabled:opacity-50">
+                {importing ? "Importando..." : "Processar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal trocar senha */}
       {pwdModal && (

@@ -452,6 +452,14 @@ export const adminUpdateLineClientInfo = createServerFn({ method: "POST" })
       lineId: z.string().uuid(),
       clientName: z.string().nullable().optional(),
       groupName: z.string().nullable().optional(),
+      plan: z.string().nullable().optional(),
+      iccid: z.string().nullable().optional(),
+      activationDate: z.string().nullable().optional(),
+      monthlyValue: z.number().nullable().optional(),
+      paymentMethod: z.string().nullable().optional(),
+      vivoRepass: z.number().nullable().optional(),
+      repass: z.number().nullable().optional(),
+      acerto: z.string().nullable().optional(),
     }),
   )
   .middleware([requireSupabaseAuth])
@@ -467,6 +475,14 @@ export const adminUpdateLineClientInfo = createServerFn({ method: "POST" })
     const update: Database["public"]["Tables"]["lines"]["Update"] = {};
     if (data.clientName !== undefined) update.client_name = data.clientName;
     if (data.groupName !== undefined) update.group_name = data.groupName;
+    if (data.plan !== undefined) update.plan = data.plan ?? "";
+    if (data.iccid !== undefined) update.iccid = data.iccid;
+    if (data.activationDate !== undefined) update.activation_date = data.activationDate;
+    if (data.monthlyValue !== undefined) update.monthly_value = data.monthlyValue;
+    if (data.paymentMethod !== undefined) update.payment_method = data.paymentMethod;
+    if (data.vivoRepass !== undefined) update.vivo_repass = data.vivoRepass;
+    if (data.repass !== undefined) update.repass = data.repass;
+    if (data.acerto !== undefined) update.acerto = data.acerto;
 
     const { error } = await supabase
       .from("lines")
@@ -506,6 +522,50 @@ export const adminUpdatePaymentStatus = createServerFn({ method: "POST" })
       .update(update)
       .eq("id", data.lineId);
     if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ---------------------------------------------------------------------------
+// Admin: criar linha nova
+// ---------------------------------------------------------------------------
+export const adminCreateLine = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      number: z.string().min(8),
+      clientName: z.string().nullable().optional(),
+      groupName: z.string().nullable().optional(),
+      plan: z.string().nullable().optional(),
+      totalGb: z.number().min(0).optional(),
+      status: z.enum(["ativa", "reduzida", "bloqueada_fatura", "bloqueada_pagamento", "aguardando"]).optional(),
+      closingDay: z.number().min(1).max(28).optional(),
+      renewalDay: z.number().min(1).max(28).optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", userId)
+      .single();
+    if (!profile?.is_admin) throw new Error("Forbidden: admin only");
+
+    const insert: Database["public"]["Tables"]["lines"]["Insert"] = {
+      number: data.number,
+      plan: data.plan ?? "",
+      total_gb: data.totalGb ?? 130,
+      status: data.status ?? "ativa",
+      cycle_closing_day: data.closingDay ?? 1,
+      cycle_renewal_day: data.renewalDay ?? 2,
+      client_name: data.clientName ?? null,
+      group_name: data.groupName ?? null,
+    };
+
+    const { error } = await supabase.from("lines").insert(insert);
+    if (error) throw new Error(error.message);
+    // tambem marca na available_lines
+    await supabase.from("available_lines").upsert({ number: data.number, linked: true }, { onConflict: "number" });
     return { ok: true };
   });
 
