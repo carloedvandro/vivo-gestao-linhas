@@ -28,6 +28,7 @@ import {
   adminUpdateCycleDays,
   adminUpdateUserPassword,
   adminUpdateLineClientInfo,
+  adminUpdatePaymentStatus,
   adminListSuppliers,
   adminCreateSupplier,
   adminUpdateSupplier,
@@ -59,6 +60,8 @@ type AdminLine = ClientLine & {
   vivoRepass: number | null;
   repass: number | null;
   acerto: string | null;
+  paymentStatus: "a_pagar" | "pago" | "aguardando" | "vencido";
+  paymentPaidAt: string | null;
 };
 
 type Supplier = {
@@ -505,6 +508,50 @@ function AdminPage() {
               <div className="text-3xl font-bold text-[#DC2626]">{blocked}</div>
             </CardContent>
           </Card>
+          <Card className={`${bgCard} ${borderClr}`}>
+            <CardHeader className="pb-2">
+              <CardTitle className={`text-sm font-medium ${textMuted}`}>Pago (mes)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-[#16A34A]">
+                R$ {filtered.filter(l => l.paymentStatus === "pago").reduce((s, l) => s + (l.monthlyValue ?? 0), 0).toFixed(2).replace(".", ",")}
+              </div>
+              <div className={`text-xs ${textMuted}`}>{filtered.filter(l => l.paymentStatus === "pago").length} linha(s)</div>
+            </CardContent>
+          </Card>
+          <Card className={`${bgCard} ${borderClr}`}>
+            <CardHeader className="pb-2">
+              <CardTitle className={`text-sm font-medium ${textMuted}`}>A receber</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-[#2563EB]">
+                R$ {filtered.filter(l => l.paymentStatus === "a_pagar").reduce((s, l) => s + (l.monthlyValue ?? 0), 0).toFixed(2).replace(".", ",")}
+              </div>
+              <div className={`text-xs ${textMuted}`}>{filtered.filter(l => l.paymentStatus === "a_pagar").length} linha(s)</div>
+            </CardContent>
+          </Card>
+          <Card className={`${bgCard} ${borderClr}`}>
+            <CardHeader className="pb-2">
+              <CardTitle className={`text-sm font-medium ${textMuted}`}>Aguardando</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-[#EAB308]">
+                R$ {filtered.filter(l => l.paymentStatus === "aguardando").reduce((s, l) => s + (l.monthlyValue ?? 0), 0).toFixed(2).replace(".", ",")}
+              </div>
+              <div className={`text-xs ${textMuted}`}>{filtered.filter(l => l.paymentStatus === "aguardando").length} linha(s)</div>
+            </CardContent>
+          </Card>
+          <Card className={`${bgCard} ${borderClr}`}>
+            <CardHeader className="pb-2">
+              <CardTitle className={`text-sm font-medium ${textMuted}`}>Vencido</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-[#DC2626]">
+                R$ {filtered.filter(l => l.paymentStatus === "vencido").reduce((s, l) => s + (l.monthlyValue ?? 0), 0).toFixed(2).replace(".", ",")}
+              </div>
+              <div className={`text-xs ${textMuted}`}>{filtered.filter(l => l.paymentStatus === "vencido").length} linha(s)</div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* fornecedores */}
@@ -645,7 +692,7 @@ function AdminPage() {
 
         {/* tabela */}
         <div className={`mt-4 overflow-auto rounded-lg border ${borderClr} ${d ? "bg-[#242424]" : "bg-white"}`} style={{ maxHeight: "calc(100vh - 200px)" }}>
-          <table className={`w-full min-w-[2200px] text-sm whitespace-nowrap ${tableDivide}`}>
+          <table className={`w-full min-w-[2400px] text-sm whitespace-nowrap ${tableDivide}`}>
             <thead className={`${tableHead} text-left text-xs uppercase tracking-wider ${textMuted} sticky top-0 z-20`}>
               <tr>
                 <th className={`px-4 py-3 sticky left-0 z-20 ${d ? "bg-[#1a1a1a]" : "bg-[#fafafa]"} w-[120px] min-w-[120px]`}>Linha</th>
@@ -655,6 +702,7 @@ function AdminPage() {
                 <th className="px-4 py-3">ICCID</th>
                 <th className="px-4 py-3">Ativação</th>
                 <th className="px-4 py-3">Valor</th>
+                <th className="px-4 py-3">Pagamento</th>
                 <th className="px-4 py-3">Venc.</th>
                 <th className="px-4 py-3">Pagamento</th>
                 <th className="px-4 py-3">Repasse Vivo</th>
@@ -673,13 +721,13 @@ function AdminPage() {
             <tbody className="divide-y divide-[#f0f0f0]">
               {lines === null ? (
                 <tr>
-                  <td colSpan={20} className={`px-4 py-10 text-center ${textMuted}`}>
+                  <td colSpan={21} className={`px-4 py-10 text-center ${textMuted}`}>
                     Carregando…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={20} className={`px-4 py-10 text-center ${textMuted}`}>
+                  <td colSpan={21} className={`px-4 py-10 text-center ${textMuted}`}>
                     Nenhuma linha encontrada.
                   </td>
                 </tr>
@@ -732,7 +780,37 @@ function AdminPage() {
                       <td className={`px-4 py-3 ${textSub}`}>{l.plan}</td>
                       <td className={`px-4 py-3 font-mono text-xs ${d ? "text-[#888]" : "text-[#666]"}`}>{l.iccid ?? "—"}</td>
                       <td className={`px-4 py-3 ${textSub}`}>{l.activationDate ? new Date(l.activationDate).toLocaleDateString("pt-BR") : "—"}</td>
-                      <td className={`px-4 py-3 ${textSub}`}>{l.monthlyValue != null ? `R$ ${l.monthlyValue.toFixed(2).replace(".", ",")}` : "—"}</td>
+                      <td className={`px-4 py-3 font-medium ${
+                        l.paymentStatus === "pago" ? "text-[#16A34A] bg-[#16A34A]/10"
+                        : l.paymentStatus === "aguardando" ? "text-[#EAB308] bg-[#EAB308]/10"
+                        : l.paymentStatus === "vencido" ? "text-[#DC2626] bg-[#DC2626]/10"
+                        : textSub
+                      }`}>{l.monthlyValue != null ? `R$ ${l.monthlyValue.toFixed(2).replace(".", ",")}` : "—"}</td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={l.paymentStatus}
+                          onChange={async (e) => {
+                            try {
+                              await adminUpdatePaymentStatus({ data: { lineId: l.id, paymentStatus: e.target.value as "a_pagar" | "pago" | "aguardando" | "vencido" } });
+                              toast.success(`${l.number}: status de pagamento atualizado`);
+                              load();
+                            } catch (err) {
+                              toast.error(err instanceof Error ? err.message : "Erro");
+                            }
+                          }}
+                          className={`rounded-md border px-2 py-1 text-xs font-medium ${
+                            l.paymentStatus === "pago" ? "border-[#16A34A] text-[#16A34A] bg-[#16A34A]/10"
+                            : l.paymentStatus === "aguardando" ? "border-[#EAB308] text-[#EAB308] bg-[#EAB308]/10"
+                            : l.paymentStatus === "vencido" ? "border-[#DC2626] text-[#DC2626] bg-[#DC2626]/10"
+                            : d ? "border-[#444] bg-[#242424] text-[#aaa]" : "border-[#ddd] bg-white text-[#555]"
+                          }`}
+                        >
+                          <option value="a_pagar">A pagar</option>
+                          <option value="pago">Pago</option>
+                          <option value="aguardando">Aguardando</option>
+                          <option value="vencido">Vencido</option>
+                        </select>
+                      </td>
                       <td className={`px-4 py-3 ${textSub}`}>{l.dueDay ?? "—"}</td>
                       <td className={`px-4 py-3 ${textSub}`}>{l.paymentMethod ?? "—"}</td>
                       <td className={`px-4 py-3 ${textSub}`}>{l.vivoRepass != null ? `R$ ${l.vivoRepass.toFixed(2).replace(".", ",")}` : "—"}</td>

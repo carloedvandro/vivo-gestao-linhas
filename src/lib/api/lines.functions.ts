@@ -37,6 +37,8 @@ export type ClientLine = {
   vivoRepass: number | null;
   repass: number | null;
   acerto: string | null;
+  paymentStatus: "a_pagar" | "pago" | "aguardando" | "vencido";
+  paymentPaidAt: string | null;
   threshold: {
     warnPct: number;
     warnGb: number | null;
@@ -475,6 +477,39 @@ export const adminUpdateLineClientInfo = createServerFn({ method: "POST" })
   });
 
 // ---------------------------------------------------------------------------
+// Admin: atualizar status de pagamento de uma linha
+// ---------------------------------------------------------------------------
+export const adminUpdatePaymentStatus = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      lineId: z.string().uuid(),
+      paymentStatus: z.enum(["a_pagar", "pago", "aguardando", "vencido"]),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", userId)
+      .single();
+    if (!profile?.is_admin) throw new Error("Forbidden: admin only");
+
+    const update: Database["public"]["Tables"]["lines"]["Update"] = {
+      payment_status: data.paymentStatus,
+      payment_paid_at: data.paymentStatus === "pago" ? new Date().toISOString() : null,
+    };
+
+    const { error } = await supabase
+      .from("lines")
+      .update(update)
+      .eq("id", data.lineId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ---------------------------------------------------------------------------
 // Admin: CRUD de fornecedores (suppliers)
 // ---------------------------------------------------------------------------
 export const adminListSuppliers = createServerFn({ method: "GET" })
@@ -596,6 +631,8 @@ function mapLine(l: LineRow, t: ThresholdRow | null): ClientLine {
     vivoRepass: l.vivo_repass == null ? null : Number(l.vivo_repass),
     repass: l.repass == null ? null : Number(l.repass),
     acerto: l.acerto ?? null,
+    paymentStatus: l.payment_status ?? "a_pagar",
+    paymentPaidAt: l.payment_paid_at ?? null,
     threshold: t
       ? { warnPct: Number(t.warn_pct), warnGb: t.warn_gb == null ? null : Number(t.warn_gb), enabled: t.enabled }
       : null,

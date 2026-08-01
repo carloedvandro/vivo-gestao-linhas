@@ -13,6 +13,8 @@ export type LineStatus =
   | "bloqueada_pagamento"
   | "aguardando"
 
+export type PaymentStatus = "a_pagar" | "pago" | "aguardando" | "vencido"
+
 export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
@@ -64,6 +66,8 @@ export type Database = {
           vivo_repass: number | null
           repass: number | null
           acerto: string | null
+          payment_status: PaymentStatus
+          payment_paid_at: string | null
           last_scraped_at: string | null
           created_at: string
           updated_at: string
@@ -91,6 +95,8 @@ export type Database = {
           vivo_repass?: number | null
           repass?: number | null
           acerto?: string | null
+          payment_status?: PaymentStatus
+          payment_paid_at?: string | null
           last_scraped_at?: string | null
         }
         Update: {
@@ -116,6 +122,8 @@ export type Database = {
           vivo_repass?: number | null
           repass?: number | null
           acerto?: string | null
+          payment_status?: PaymentStatus
+          payment_paid_at?: string | null
           last_scraped_at?: string | null
         }
         Relationships: []
