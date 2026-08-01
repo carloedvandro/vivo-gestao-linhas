@@ -615,14 +615,13 @@ function AdminPage() {
   const tableHead = d ? "bg-[#1a1a1a] text-[#888]" : "bg-[#fafafa] text-[#888]";
   const tableDivide = d ? "divide-[#333]" : "divide-[#f0f0f0]";
 
+  // ===== Calculos financeiros =====
+  const allLines = lines ?? [];
   // Listas unicas para sugestoes nos forms (datalist)
   const uniquePlans = Array.from(new Set(allLines.map((l) => l.plan).filter(Boolean))) as string[];
   const uniquePaymentMethods = Array.from(new Set(allLines.map((l) => l.paymentMethod).filter(Boolean))) as string[];
   const uniqueVivoRepass = Array.from(new Set(allLines.map((l) => l.vivoRepass).filter((v) => v != null))) as number[];
   const uniqueTotalGb = Array.from(new Set(allLines.map((l) => l.totalGb).filter((v) => v != null))) as number[];
-
-  // ===== Calculos financeiros =====
-  const allLines = lines ?? [];
   const totalFaturado = allLines.reduce((s, l) => s + (l.monthlyValue ?? 0), 0);
   const totalRecebido = allLines.filter(l => l.paymentStatus === "pago").reduce((s, l) => s + (l.monthlyValue ?? 0), 0);
   const totalAReceber = allLines.filter(l => l.paymentStatus === "a_pagar").reduce((s, l) => s + (l.monthlyValue ?? 0), 0);
