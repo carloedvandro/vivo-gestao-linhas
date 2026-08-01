@@ -535,10 +535,18 @@ export const adminCreateLine = createServerFn({ method: "POST" })
       clientName: z.string().nullable().optional(),
       groupName: z.string().nullable().optional(),
       plan: z.string().nullable().optional(),
-      totalGb: z.number().min(0).optional(),
+      iccid: z.string().nullable().optional(),
+      activationDate: z.string().nullable().optional(),
+      monthlyValue: z.number().nullable().optional(),
+      dueDay: z.number().min(1).max(28).nullable().optional(),
+      paymentMethod: z.string().nullable().optional(),
+      vivoRepass: z.number().nullable().optional(),
+      repass: z.number().nullable().optional(),
+      acerto: z.string().nullable().optional(),
+      totalGb: z.number().min(0).nullable().optional(),
       status: z.enum(["ativa", "reduzida", "bloqueada_fatura", "bloqueada_pagamento", "aguardando"]).optional(),
-      closingDay: z.number().min(1).max(28).optional(),
-      renewalDay: z.number().min(1).max(28).optional(),
+      closingDay: z.number().min(1).max(28).nullable().optional(),
+      renewalDay: z.number().min(1).max(28).nullable().optional(),
     }),
   )
   .middleware([requireSupabaseAuth])
@@ -560,6 +568,14 @@ export const adminCreateLine = createServerFn({ method: "POST" })
       cycle_renewal_day: data.renewalDay ?? 2,
       client_name: data.clientName ?? null,
       group_name: data.groupName ?? null,
+      iccid: data.iccid ?? null,
+      activation_date: data.activationDate ?? null,
+      monthly_value: data.monthlyValue ?? null,
+      due_day: data.dueDay ?? null,
+      payment_method: data.paymentMethod ?? null,
+      vivo_repass: data.vivoRepass ?? null,
+      repass: data.repass ?? null,
+      acerto: data.acerto ?? null,
     };
 
     const { error } = await supabase.from("lines").insert(insert);

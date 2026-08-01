@@ -136,7 +136,13 @@ function AdminPage() {
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
   const [view, setView] = useState<"admin" | "financeiro">("admin");
   const [showAddLine, setShowAddLine] = useState(false);
-  const [newLine, setNewLine] = useState({ number: "", clientName: "", groupName: "", plan: "", totalGb: "130", closingDay: "1", renewalDay: "2" });
+  const [newLine, setNewLine] = useState({
+    number: "", clientName: "", groupName: "", plan: "", iccid: "", activationDate: "",
+    monthlyValue: "", dueDay: "", paymentMethod: "", vivoRepass: "", repass: "", acerto: "",
+    totalGb: "", closingDay: "", renewalDay: "",
+  });
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [showNewSupplierInline, setShowNewSupplierInline] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState(false);
@@ -311,6 +317,20 @@ function AdminPage() {
     }
   }
 
+  async function createInlineSupplier() {
+    if (!newSupplierName.trim()) { toast.error("Digite o nome do fornecedor"); return; }
+    try {
+      await adminCreateSupplier({ data: { name: newSupplierName.trim(), email: null, phone: null } } as never);
+      toast.success("Fornecedor criado");
+      setNewLine({ ...newLine, groupName: newSupplierName.trim() });
+      setNewSupplierName("");
+      setShowNewSupplierInline(false);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar fornecedor");
+    }
+  }
+
   async function createLine() {
     if (!newLine.number.trim()) { toast.error("Número da linha é obrigatório"); return; }
     try {
@@ -320,14 +340,26 @@ function AdminPage() {
           clientName: newLine.clientName || null,
           groupName: newLine.groupName || null,
           plan: newLine.plan || null,
-          totalGb: parseFloat(newLine.totalGb) || 130,
-          closingDay: parseInt(newLine.closingDay) || 1,
-          renewalDay: parseInt(newLine.renewalDay) || 2,
+          iccid: newLine.iccid || null,
+          activationDate: newLine.activationDate || null,
+          monthlyValue: newLine.monthlyValue === "" ? null : parseFloat(newLine.monthlyValue),
+          dueDay: newLine.dueDay === "" ? null : parseInt(newLine.dueDay),
+          paymentMethod: newLine.paymentMethod || null,
+          vivoRepass: newLine.vivoRepass === "" ? null : parseFloat(newLine.vivoRepass),
+          repass: newLine.repass === "" ? null : parseFloat(newLine.repass),
+          acerto: newLine.acerto || null,
+          totalGb: newLine.totalGb === "" ? null : parseFloat(newLine.totalGb),
+          closingDay: newLine.closingDay === "" ? null : parseInt(newLine.closingDay),
+          renewalDay: newLine.renewalDay === "" ? null : parseInt(newLine.renewalDay),
         },
       } as never);
       toast.success(`Linha ${newLine.number} criada com sucesso`);
       setShowAddLine(false);
-      setNewLine({ number: "", clientName: "", groupName: "", plan: "", totalGb: "130", closingDay: "1", renewalDay: "2" });
+      setNewLine({
+        number: "", clientName: "", groupName: "", plan: "", iccid: "", activationDate: "",
+        monthlyValue: "", dueDay: "", paymentMethod: "", vivoRepass: "", repass: "", acerto: "",
+        totalGb: "", closingDay: "", renewalDay: "",
+      });
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar linha");
@@ -582,6 +614,12 @@ function AdminPage() {
   const inputClr = d ? "bg-[#1a1a1a] border-[#444] text-[#e0e0e0]" : "";
   const tableHead = d ? "bg-[#1a1a1a] text-[#888]" : "bg-[#fafafa] text-[#888]";
   const tableDivide = d ? "divide-[#333]" : "divide-[#f0f0f0]";
+
+  // Listas unicas para sugestoes nos forms (datalist)
+  const uniquePlans = Array.from(new Set(allLines.map((l) => l.plan).filter(Boolean))) as string[];
+  const uniquePaymentMethods = Array.from(new Set(allLines.map((l) => l.paymentMethod).filter(Boolean))) as string[];
+  const uniqueVivoRepass = Array.from(new Set(allLines.map((l) => l.vivoRepass).filter((v) => v != null))) as number[];
+  const uniqueTotalGb = Array.from(new Set(allLines.map((l) => l.totalGb).filter((v) => v != null))) as number[];
 
   // ===== Calculos financeiros =====
   const allLines = lines ?? [];
@@ -1394,44 +1432,105 @@ function AdminPage() {
 
       {/* Modal Nova Linha */}
       {showAddLine && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={() => setShowAddLine(false)}>
-          <div className={`w-full max-w-lg rounded-lg border p-6 ${d ? "bg-[#242424] border-[#444]" : "bg-white border-[#ddd]"}`} onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6 overflow-y-auto" onClick={() => setShowAddLine(false)}>
+          <div className={`w-full max-w-2xl rounded-lg border p-6 my-8 ${d ? "bg-[#242424] border-[#444]" : "bg-white border-[#ddd]"}`} onClick={(e) => e.stopPropagation()}>
             <h3 className={`mb-4 text-lg font-semibold ${textMain}`}>Adicionar Nova Linha</h3>
-            <div className="space-y-3">
-              <div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
                 <label className={`mb-1 block text-xs ${textMuted}`}>Número da linha *</label>
                 <input value={newLine.number} onChange={(e) => setNewLine({ ...newLine, number: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} placeholder="11999999999" />
               </div>
-              <div>
+              <div className="col-span-2">
                 <label className={`mb-1 block text-xs ${textMuted}`}>Nome do cliente</label>
                 <input value={newLine.clientName} onChange={(e) => setNewLine({ ...newLine, clientName: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} />
               </div>
               <div>
                 <label className={`mb-1 block text-xs ${textMuted}`}>Fornecedor</label>
-                <select value={newLine.groupName} onChange={(e) => setNewLine({ ...newLine, groupName: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`}>
-                  <option value="">—</option>
-                  {(suppliers ?? []).map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
-                </select>
+                {showNewSupplierInline ? (
+                  <div className="flex gap-1">
+                    <input
+                      autoFocus
+                      value={newSupplierName}
+                      onChange={(e) => setNewSupplierName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") createInlineSupplier(); if (e.key === "Escape") { setShowNewSupplierInline(false); setNewSupplierName(""); } }}
+                      className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`}
+                      placeholder="Nome do novo fornecedor"
+                    />
+                    <button type="button" onClick={createInlineSupplier} className="shrink-0 rounded-md bg-[#16A34A] px-3 py-2 text-sm font-medium text-white hover:bg-[#15803D]">OK</button>
+                    <button type="button" onClick={() => { setShowNewSupplierInline(false); setNewSupplierName(""); }} className={`shrink-0 rounded-md px-2 py-2 text-sm ${textSub} ${hoverBg}`}>×</button>
+                  </div>
+                ) : (
+                  <div className="flex gap-1">
+                    <input list="dl-suppliers-new" value={newLine.groupName} onChange={(e) => setNewLine({ ...newLine, groupName: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} placeholder="Selecione ou digite" />
+                    <button type="button" onClick={() => setShowNewSupplierInline(true)} title="Criar novo fornecedor" className={`shrink-0 rounded-md border px-3 py-2 text-sm font-bold ${d ? "border-[#444] text-[#e0e0e0] hover:bg-[#2a2a2a]" : "border-[#ddd] text-[#555] hover:bg-[#f3f3f3]"}`}>+</button>
+                  </div>
+                )}
+                <datalist id="dl-suppliers-new">
+                  {(suppliers ?? []).map((s) => <option key={s.id} value={s.name} />)}
+                </datalist>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={`mb-1 block text-xs ${textMuted}`}>Plano</label>
-                  <input value={newLine.plan} onChange={(e) => setNewLine({ ...newLine, plan: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} />
-                </div>
-                <div>
-                  <label className={`mb-1 block text-xs ${textMuted}`}>Franquia (GB)</label>
-                  <input type="number" value={newLine.totalGb} onChange={(e) => setNewLine({ ...newLine, totalGb: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} />
-                </div>
-                <div>
-                  <label className={`mb-1 block text-xs ${textMuted}`}>Fecha ciclo (dia)</label>
-                  <input type="number" min={1} max={28} value={newLine.closingDay} onChange={(e) => setNewLine({ ...newLine, closingDay: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} />
-                </div>
-                <div>
-                  <label className={`mb-1 block text-xs ${textMuted}`}>Renovação (dia)</label>
-                  <input type="number" min={1} max={28} value={newLine.renewalDay} onChange={(e) => setNewLine({ ...newLine, renewalDay: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} />
-                </div>
+              <div>
+                <label className={`mb-1 block text-xs ${textMuted}`}>Plano</label>
+                <input list="dl-plans-new" value={newLine.plan} onChange={(e) => setNewLine({ ...newLine, plan: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} placeholder="Selecione ou digite" />
+                <datalist id="dl-plans-new">
+                  {uniquePlans.map((p) => <option key={p} value={p} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className={`mb-1 block text-xs ${textMuted}`}>ICCID</label>
+                <input value={newLine.iccid} onChange={(e) => setNewLine({ ...newLine, iccid: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm font-mono ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} />
+              </div>
+              <div>
+                <label className={`mb-1 block text-xs ${textMuted}`}>Ativação</label>
+                <input type="date" value={newLine.activationDate} onChange={(e) => setNewLine({ ...newLine, activationDate: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} />
+              </div>
+              <div>
+                <label className={`mb-1 block text-xs ${textMuted}`}>Valor</label>
+                <input type="number" step="0.01" value={newLine.monthlyValue} onChange={(e) => setNewLine({ ...newLine, monthlyValue: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} placeholder="0.00" />
+              </div>
+              <div>
+                <label className={`mb-1 block text-xs ${textMuted}`}>Vencimento (dia)</label>
+                <input type="number" min={1} max={28} value={newLine.dueDay} onChange={(e) => setNewLine({ ...newLine, dueDay: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} placeholder="1-28" />
+              </div>
+              <div>
+                <label className={`mb-1 block text-xs ${textMuted}`}>Form. de pagamento</label>
+                <input list="dl-paymethods-new" value={newLine.paymentMethod} onChange={(e) => setNewLine({ ...newLine, paymentMethod: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} placeholder="Selecione ou digite" />
+                <datalist id="dl-paymethods-new">
+                  {uniquePaymentMethods.map((m) => <option key={m} value={m} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className={`mb-1 block text-xs ${textMuted}`}>Repasse Vivo</label>
+                <input list="dl-vivorepass-new" type="number" step="0.01" value={newLine.vivoRepass} onChange={(e) => setNewLine({ ...newLine, vivoRepass: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} placeholder="0.00" />
+                <datalist id="dl-vivorepass-new">
+                  {uniqueVivoRepass.map((v) => <option key={v} value={v} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className={`mb-1 block text-xs ${textMuted}`}>Repasse</label>
+                <input type="number" step="0.01" value={newLine.repass} onChange={(e) => setNewLine({ ...newLine, repass: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} placeholder="0.00" />
+              </div>
+              <div>
+                <label className={`mb-1 block text-xs ${textMuted}`}>Acerto</label>
+                <input value={newLine.acerto} onChange={(e) => setNewLine({ ...newLine, acerto: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} />
+              </div>
+              <div>
+                <label className={`mb-1 block text-xs ${textMuted}`}>Franquia (GB)</label>
+                <input list="dl-totalgb-new" type="number" value={newLine.totalGb} onChange={(e) => setNewLine({ ...newLine, totalGb: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} placeholder="Ex: 130" />
+                <datalist id="dl-totalgb-new">
+                  {uniqueTotalGb.map((v) => <option key={v} value={v} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className={`mb-1 block text-xs ${textMuted}`}>Fecha ciclo (dia)</label>
+                <input type="number" min={1} max={28} value={newLine.closingDay} onChange={(e) => setNewLine({ ...newLine, closingDay: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} placeholder="1-28" />
+              </div>
+              <div>
+                <label className={`mb-1 block text-xs ${textMuted}`}>Renovação (dia)</label>
+                <input type="number" min={1} max={28} value={newLine.renewalDay} onChange={(e) => setNewLine({ ...newLine, renewalDay: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${d ? "bg-[#1a1a1a] border-[#444] text-white" : "border-[#ddd]"}`} placeholder="1-28" />
               </div>
             </div>
+            <p className={`mt-3 text-xs ${textMuted}`}>Apenas o número da linha é obrigatório. Os demais campos podem ser preenchidos depois.</p>
             <div className="mt-5 flex justify-end gap-2">
               <button onClick={() => setShowAddLine(false)} className={`rounded-md px-4 py-2 text-sm ${textSub} ${hoverBg}`}>Cancelar</button>
               <button onClick={createLine} className="rounded-md bg-[#16A34A] px-4 py-2 text-sm font-medium text-white hover:bg-[#15803D]">Criar linha</button>
