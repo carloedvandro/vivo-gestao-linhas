@@ -132,6 +132,7 @@ function AdminPage() {
   const [showSupplierForm, setShowSupplierForm] = useState(false);
   const [supplierForm, setSupplierForm] = useState({ name: "", email: "", phone: "" });
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
+  const [view, setView] = useState<"admin" | "financeiro">("admin");
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("admin-dark") === "true";
@@ -448,6 +449,83 @@ function AdminPage() {
   const tableHead = d ? "bg-[#1a1a1a] text-[#888]" : "bg-[#fafafa] text-[#888]";
   const tableDivide = d ? "divide-[#333]" : "divide-[#f0f0f0]";
 
+  // ===== Calculos financeiros =====
+  const allLines = lines ?? [];
+  const totalFaturado = allLines.reduce((s, l) => s + (l.monthlyValue ?? 0), 0);
+  const totalRecebido = allLines.filter(l => l.paymentStatus === "pago").reduce((s, l) => s + (l.monthlyValue ?? 0), 0);
+  const totalAReceber = allLines.filter(l => l.paymentStatus === "a_pagar").reduce((s, l) => s + (l.monthlyValue ?? 0), 0);
+  const totalAguardando = allLines.filter(l => l.paymentStatus === "aguardando").reduce((s, l) => s + (l.monthlyValue ?? 0), 0);
+  const totalVencido = allLines.filter(l => l.paymentStatus === "vencido").reduce((s, l) => s + (l.monthlyValue ?? 0), 0);
+  const totalRepasseVivo = allLines.reduce((s, l) => s + (l.vivoRepass ?? 0), 0);
+  const totalRepasseFornec = allLines.reduce((s, l) => s + (l.repass ?? 0), 0);
+  const lucroLiquido = totalRecebido - totalRepasseVivo - totalRepasseFornec;
+
+  const fornecedores = (suppliers ?? []).map(s => {
+    const linhasForn = allLines.filter(l => l.groupName === s.name);
+    const faturado = linhasForn.reduce((sum, l) => sum + (l.monthlyValue ?? 0), 0);
+    const recebido = linhasForn.filter(l => l.paymentStatus === "pago").reduce((sum, l) => sum + (l.monthlyValue ?? 0), 0);
+    const aReceber = linhasForn.filter(l => l.paymentStatus === "a_pagar").reduce((sum, l) => sum + (l.monthlyValue ?? 0), 0);
+    const aguardando = linhasForn.filter(l => l.paymentStatus === "aguardando").reduce((sum, l) => sum + (l.monthlyValue ?? 0), 0);
+    const vencido = linhasForn.filter(l => l.paymentStatus === "vencido").reduce((sum, l) => sum + (l.monthlyValue ?? 0), 0);
+    const repasseVivo = linhasForn.reduce((sum, l) => sum + (l.vivoRepass ?? 0), 0);
+    const repasseForn = linhasForn.reduce((sum, l) => sum + (l.repass ?? 0), 0);
+    const lucro = recebido - repasseVivo - repasseForn;
+    return { name: s.name, count: linhasForn.length, faturado, recebido, aReceber, aguardando, vencido, repasseVivo, repasseForn, lucro };
+  });
+
+  function fmt(v: number) {
+    return `R$ ${v.toFixed(2).replace(".", ",")}`;
+  }
+
+  function exportFinanceiroPDF() {
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pw = doc.internal.pageSize.getWidth();
+    const margin = 10;
+    let y = 15;
+    doc.setFontSize(16); doc.setFont("helvetica", "bold");
+    doc.text("Relatorio Financeiro — Ytech", margin, y); y += 8;
+    doc.setFontSize(9); doc.setFont("helvetica", "normal");
+    doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, margin, y); y += 10;
+    doc.setFontSize(11); doc.setFont("helvetica", "bold");
+    doc.text("Resumo Geral", margin, y); y += 6;
+    doc.setFontSize(9); doc.setFont("helvetica", "normal");
+    [
+      ["Total Faturado", fmt(totalFaturado)], ["Total Recebido", fmt(totalRecebido)],
+      ["A Receber", fmt(totalAReceber)], ["Aguardando", fmt(totalAguardando)],
+      ["Vencido", fmt(totalVencido)], ["Repasse Vivo", fmt(totalRepasseVivo)],
+      ["Repasse Fornecedores", fmt(totalRepasseFornec)], ["Lucro Liquido", fmt(lucroLiquido)],
+    ].forEach(([label, val]) => { doc.text(`${label}:`, margin, y); doc.text(val, margin + 60, y); y += 5; });
+    y += 6;
+    doc.setFontSize(11); doc.setFont("helvetica", "bold");
+    doc.text("Por Fornecedor", margin, y); y += 6;
+    const fW = [40, 15, 25, 25, 25, 25, 25, 25, 25, 25];
+    doc.setFontSize(8);
+    ["Fornecedor","Linhas","Faturado","Recebido","A Receber","Aguard.","Vencido","Rep. Vivo","Rep. Forn.","Lucro"].forEach((c, i) => doc.text(c, margin + fW.slice(0, i).reduce((a, b) => a + b, 0), y));
+    y += 4; doc.line(margin, y, pw - margin, y); y += 5;
+    doc.setFont("helvetica", "normal");
+    fornecedores.forEach(f => {
+      if (y > doc.internal.pageSize.getHeight() - 15) { doc.addPage(); y = 15; }
+      [f.name, String(f.count), fmt(f.faturado), fmt(f.recebido), fmt(f.aReceber), fmt(f.aguardando), fmt(f.vencido), fmt(f.repasseVivo), fmt(f.repasseForn), fmt(f.lucro)].forEach((v, i) => doc.text(String(v), margin + fW.slice(0, i).reduce((a, b) => a + b, 0), y));
+      y += 5;
+    });
+    y += 8;
+    doc.setFontSize(11); doc.setFont("helvetica", "bold");
+    doc.text("Por Linha", margin, y); y += 6;
+    const lW = [28, 50, 35, 22, 22, 14, 22, 22, 22];
+    doc.setFontSize(8);
+    ["Linha","Cliente","Fornecedor","Valor","Status","Venc.","Rep. Vivo","Rep. Forn.","Lucro"].forEach((c, i) => doc.text(c, margin + lW.slice(0, i).reduce((a, b) => a + b, 0), y));
+    y += 4; doc.line(margin, y, pw - margin, y); y += 5;
+    doc.setFont("helvetica", "normal");
+    allLines.forEach(l => {
+      if (y > doc.internal.pageSize.getHeight() - 15) { doc.addPage(); y = 15; }
+      const st = l.paymentStatus === "pago" ? "Pago" : l.paymentStatus === "aguardando" ? "Aguard." : l.paymentStatus === "vencido" ? "Vencido" : "A pagar";
+      const lucro = (l.monthlyValue ?? 0) - (l.vivoRepass ?? 0) - (l.repass ?? 0);
+      [l.number, (l.clientName ?? "—").substring(0, 30), (l.groupName ?? "—").substring(0, 20), fmt(l.monthlyValue ?? 0), st, String(l.dueDay ?? "—"), fmt(l.vivoRepass ?? 0), fmt(l.repass ?? 0), fmt(lucro)].forEach((v, i) => doc.text(String(v), margin + lW.slice(0, i).reduce((a, b) => a + b, 0), y));
+      y += 5;
+    });
+    doc.save(`relatorio-financeiro-${new Date().toISOString().slice(0, 10)}.pdf`);
+  }
+
   return (
     <div className={`min-h-screen ${bg}`}>
       <header className={`sticky top-0 z-30 border-b ${bgHeader} backdrop-blur`}>
@@ -457,14 +535,14 @@ function AdminPage() {
           </div>
           <h1 className={`text-lg font-semibold ${textMain}`}>Painel Administrativo</h1>
           <div className="ml-auto flex items-center gap-2">
-            <Link
-              to="/admin/financeiro"
+            <button
+              onClick={() => setView(view === "admin" ? "financeiro" : "admin")}
               className="flex items-center gap-1 rounded-md bg-[#660099] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#550080]"
               title="Relatório Financeiro"
             >
               <FileDown className="h-4 w-4" />
-              <span className="hidden sm:inline">Financeiro</span>
-            </Link>
+              <span className="hidden sm:inline">{view === "admin" ? "Financeiro" : "Voltar"}</span>
+            </button>
             <button
               onClick={toggleDarkMode}
               className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium ${textSub} ${hoverBg}`}
@@ -497,6 +575,93 @@ function AdminPage() {
       </header>
 
       <main className="mx-auto max-w-[1400px] px-4 py-6">
+        {view === "financeiro" ? (
+          <>
+            {/* ===== VIEW FINANCEIRO ===== */}
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className={`text-lg font-bold ${textMain}`}>Relatório Financeiro</h2>
+              <button
+                onClick={exportFinanceiroPDF}
+                disabled={!lines || allLines.length === 0}
+                className="flex items-center gap-1 rounded-md bg-[#660099] px-3 py-2 text-sm font-medium text-white hover:bg-[#550080] disabled:opacity-50"
+              >
+                <FileDown className="h-4 w-4" />
+                <span>Exportar PDF</span>
+              </button>
+            </div>
+            <h2 className={`mb-3 text-lg font-bold ${textMain}`}>Resumo Geral</h2>
+            <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+              <Card className={`${bgCard} ${borderClr}`}><CardHeader className="pb-2"><CardTitle className={`text-sm ${textMuted}`}>Total Faturado</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-[#660099]">{fmt(totalFaturado)}</div></CardContent></Card>
+              <Card className={`${bgCard} ${borderClr}`}><CardHeader className="pb-2"><CardTitle className={`text-sm ${textMuted}`}>Recebido</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-[#16A34A]">{fmt(totalRecebido)}</div></CardContent></Card>
+              <Card className={`${bgCard} ${borderClr}`}><CardHeader className="pb-2"><CardTitle className={`text-sm ${textMuted}`}>A Receber</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-[#2563EB]">{fmt(totalAReceber)}</div></CardContent></Card>
+              <Card className={`${bgCard} ${borderClr}`}><CardHeader className="pb-2"><CardTitle className={`text-sm ${textMuted}`}>Aguardando</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-[#EAB308]">{fmt(totalAguardando)}</div></CardContent></Card>
+              <Card className={`${bgCard} ${borderClr}`}><CardHeader className="pb-2"><CardTitle className={`text-sm ${textMuted}`}>Vencido</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-[#DC2626]">{fmt(totalVencido)}</div></CardContent></Card>
+              <Card className={`${bgCard} ${borderClr}`}><CardHeader className="pb-2"><CardTitle className={`text-sm ${textMuted}`}>Repasse Vivo</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-[#F97316]">{fmt(totalRepasseVivo)}</div></CardContent></Card>
+              <Card className={`${bgCard} ${borderClr}`}><CardHeader className="pb-2"><CardTitle className={`text-sm ${textMuted}`}>Repasse Fornec.</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-[#F97316]">{fmt(totalRepasseFornec)}</div></CardContent></Card>
+              <Card className={`${bgCard} ${borderClr}`}><CardHeader className="pb-2"><CardTitle className={`text-sm ${textMuted}`}>Lucro Liquido</CardTitle></CardHeader><CardContent><div className={`text-2xl font-bold ${lucroLiquido >= 0 ? "text-[#16A34A]" : "text-[#DC2626]"}`}>{fmt(lucroLiquido)}</div><div className={`text-xs ${textMuted}`}>recebido - repasses</div></CardContent></Card>
+            </div>
+
+            <h2 className={`mb-3 text-lg font-bold ${textMain}`}>Resumo por Fornecedor</h2>
+            <div className={`mb-6 overflow-auto rounded-lg border ${borderClr} ${d ? "bg-[#242424]" : "bg-white"}`}>
+              <table className={`w-full min-w-[900px] text-sm whitespace-nowrap ${tableDivide}`}>
+                <thead className={`${tableHead} text-left text-xs uppercase tracking-wider ${textMuted}`}>
+                  <tr>
+                    <th className="px-4 py-3">Fornecedor</th><th className="px-4 py-3">Linhas</th><th className="px-4 py-3">Faturado</th><th className="px-4 py-3">Recebido</th><th className="px-4 py-3">A Receber</th><th className="px-4 py-3">Aguardando</th><th className="px-4 py-3">Vencido</th><th className="px-4 py-3">Rep. Vivo</th><th className="px-4 py-3">Rep. Forn.</th><th className="px-4 py-3">Lucro</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {fornecedores.map((f) => (
+                    <tr key={f.name}>
+                      <td className={`px-4 py-3 font-medium ${textMain}`}>{f.name}</td>
+                      <td className={`px-4 py-3 ${textSub}`}>{f.count}</td>
+                      <td className={`px-4 py-3 ${textSub}`}>{fmt(f.faturado)}</td>
+                      <td className="px-4 py-3 font-medium text-[#16A34A]">{fmt(f.recebido)}</td>
+                      <td className="px-4 py-3 text-[#2563EB]">{fmt(f.aReceber)}</td>
+                      <td className="px-4 py-3 text-[#EAB308]">{fmt(f.aguardando)}</td>
+                      <td className="px-4 py-3 text-[#DC2626]">{fmt(f.vencido)}</td>
+                      <td className={`px-4 py-3 ${textSub}`}>{fmt(f.repasseVivo)}</td>
+                      <td className={`px-4 py-3 ${textSub}`}>{fmt(f.repasseForn)}</td>
+                      <td className={`px-4 py-3 font-medium ${f.lucro >= 0 ? "text-[#16A34A]" : "text-[#DC2626]"}`}>{fmt(f.lucro)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <h2 className={`mb-3 text-lg font-bold ${textMain}`}>Detalhamento por Linha</h2>
+            <div className={`overflow-auto rounded-lg border ${borderClr} ${d ? "bg-[#242424]" : "bg-white"}`}>
+              <table className={`w-full min-w-[1100px] text-sm whitespace-nowrap ${tableDivide}`}>
+                <thead className={`${tableHead} text-left text-xs uppercase tracking-wider ${textMuted}`}>
+                  <tr>
+                    <th className="px-4 py-3">Linha</th><th className="px-4 py-3">Cliente</th><th className="px-4 py-3">Fornecedor</th><th className="px-4 py-3">Valor</th><th className="px-4 py-3">Status Pag.</th><th className="px-4 py-3">Venc.</th><th className="px-4 py-3">Rep. Vivo</th><th className="px-4 py-3">Rep. Forn.</th><th className="px-4 py-3">Lucro</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {allLines.map((l) => {
+                    const lucro = (l.monthlyValue ?? 0) - (l.vivoRepass ?? 0) - (l.repass ?? 0);
+                    const stLabel = l.paymentStatus === "pago" ? "Pago" : l.paymentStatus === "aguardando" ? "Aguardando" : l.paymentStatus === "vencido" ? "Vencido" : "A pagar";
+                    const stColor = l.paymentStatus === "pago" ? "text-[#16A34A]" : l.paymentStatus === "aguardando" ? "text-[#EAB308]" : l.paymentStatus === "vencido" ? "text-[#DC2626]" : textSub;
+                    return (
+                      <tr key={l.id}>
+                        <td className={`px-4 py-3 font-medium ${textMain}`}>{l.number}</td>
+                        <td className={`px-4 py-3 ${textSub}`}>{l.clientName ?? "—"}</td>
+                        <td className={`px-4 py-3 ${textSub}`}>{l.groupName ?? "—"}</td>
+                        <td className={`px-4 py-3 font-medium ${l.paymentStatus === "pago" ? "text-[#16A34A]" : l.paymentStatus === "aguardando" ? "text-[#EAB308]" : l.paymentStatus === "vencido" ? "text-[#DC2626]" : textSub}`}>{l.monthlyValue != null ? fmt(l.monthlyValue) : "—"}</td>
+                        <td className={`px-4 py-3 font-medium ${stColor}`}>{stLabel}</td>
+                        <td className={`px-4 py-3 ${textSub}`}>{l.dueDay ?? "—"}</td>
+                        <td className={`px-4 py-3 ${textSub}`}>{l.vivoRepass != null ? fmt(l.vivoRepass) : "—"}</td>
+                        <td className={`px-4 py-3 ${textSub}`}>{l.repass != null ? fmt(l.repass) : "—"}</td>
+                        <td className={`px-4 py-3 font-medium ${lucro >= 0 ? "text-[#16A34A]" : "text-[#DC2626]"}`}>{fmt(lucro)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+        <>
+        {/* ===== VIEW ADMIN NORMAL ===== */}
         {/* métricas */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card className={`${bgCard} ${borderClr}`}>
@@ -1018,6 +1183,8 @@ function AdminPage() {
           <code>vivo_portal_url</code> por linha no banco). O scraper atualiza o consumo a cada 5
           minutos.
         </p>
+        </>
+        )}
       </main>
 
       {/* Modal trocar senha */}
