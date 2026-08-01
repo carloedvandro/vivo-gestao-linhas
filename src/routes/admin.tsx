@@ -554,12 +554,12 @@ function AdminPage() {
         </div>
 
         {/* tabela */}
-        <div className={`mt-4 overflow-x-auto rounded-lg border ${borderClr} ${d ? "bg-[#242424]" : "bg-white"}`}>
+        <div className={`mt-4 overflow-auto rounded-lg border ${borderClr} ${d ? "bg-[#242424]" : "bg-white"}`} style={{ maxHeight: "calc(100vh - 200px)" }}>
           <table className={`w-full min-w-[2200px] text-sm whitespace-nowrap ${tableDivide}`}>
-            <thead className={`${tableHead} text-left text-xs uppercase tracking-wider ${textMuted}`}>
+            <thead className={`${tableHead} text-left text-xs uppercase tracking-wider ${textMuted} sticky top-0 z-20`}>
               <tr>
-                <th className="px-4 py-3">Linha</th>
-                <th className="px-4 py-3">Nome do cliente</th>
+                <th className={`px-4 py-3 sticky left-0 z-20 ${d ? "bg-[#1a1a1a]" : "bg-[#fafafa]"} w-[120px] min-w-[120px]`}>Linha</th>
+                <th className={`px-4 py-3 sticky left-[120px] z-20 ${d ? "bg-[#1a1a1a]" : "bg-[#fafafa]"} w-[180px] min-w-[180px]`}>Nome do cliente</th>
                 <th className="px-4 py-3">Fornecedor</th>
                 <th className="px-4 py-3">Plano</th>
                 <th className="px-4 py-3">ICCID</th>
@@ -605,8 +605,8 @@ function AdminPage() {
                         : (l.threshold.warnPct / 100) * l.total);
                   return (
                     <tr key={l.id} className={inAlert ? "bg-[#FFF7ED]" : ""}>
-                      <td className={`px-4 py-3 font-medium ${textMain}`}>{l.number}</td>
-                      <td className="px-4 py-3">
+                      <td className={`px-4 py-3 font-medium ${textMain} sticky left-0 z-10 ${inAlert ? "bg-[#FFF7ED]" : d ? "bg-[#242424]" : "bg-white"} w-[120px] min-w-[120px]`}>{l.number}</td>
+                      <td className={`px-4 py-3 sticky left-[120px] z-10 ${inAlert ? "bg-[#FFF7ED]" : d ? "bg-[#242424]" : "bg-white"} w-[180px] min-w-[180px]`}>
                         <Input
                           type="text"
                           defaultValue={l.clientName ?? ""}
