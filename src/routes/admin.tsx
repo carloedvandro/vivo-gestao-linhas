@@ -447,32 +447,32 @@ function AdminPage() {
           {showSupplierForm && (
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
-                <Label className="text-xs text-[#888]">Nome *</Label>
+                <Label className={`text-xs ${textMuted}`}>Nome *</Label>
                 <Input
                   value={supplierForm.name}
                   onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })}
                   placeholder="Ex: Oliveira"
-                  className="mt-1"
+                  className={`mt-1 ${inputClr}`}
                   autoFocus
                 />
               </div>
               <div>
-                <Label className="text-xs text-[#888]">E-mail</Label>
+                <Label className={`text-xs ${textMuted}`}>E-mail</Label>
                 <Input
                   type="email"
                   value={supplierForm.email}
                   onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })}
                   placeholder="fornecedor@email.com"
-                  className="mt-1"
+                  className={`mt-1 ${inputClr}`}
                 />
               </div>
               <div>
-                <Label className="text-xs text-[#888]">Telefone</Label>
+                <Label className={`text-xs ${textMuted}`}>Telefone</Label>
                 <Input
                   value={supplierForm.phone}
                   onChange={(e) => setSupplierForm({ ...supplierForm, phone: e.target.value })}
                   placeholder="(11) 99999-9999"
-                  className="mt-1"
+                  className={`mt-1 ${inputClr}`}
                 />
               </div>
               <div className="col-span-full flex justify-end gap-2">
@@ -503,7 +503,7 @@ function AdminPage() {
                   className="flex items-center gap-2 rounded-full border border-[#e0d4ed] bg-[#f8f5fc] px-3 py-1.5"
                 >
                   <span className="text-xs font-medium text-[#660099]">{s.name}</span>
-                  {s.email && <span className="text-xs text-[#999]">· {s.email}</span>}
+                  {s.email && <span className={`text-xs ${d ? "text-[#888]" : "text-[#999]"}`}>· {s.email}</span>}
                   <button
                     onClick={() => {
                       setEditingSupplierId(s.id);
@@ -531,7 +531,7 @@ function AdminPage() {
         {/* filtro */}
         <div className="mt-6 flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#999]" />
+            <Search className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${d ? "text-[#888]" : "text-[#999]"}`} />
             <Input
               placeholder="Buscar por número, plano, cliente ou fornecedor…"
               value={filter}
@@ -563,13 +563,13 @@ function AdminPage() {
             <tbody className="divide-y divide-[#f0f0f0]">
               {lines === null ? (
                 <tr>
-                  <td colSpan={12} className="px-4 py-10 text-center text-[#999]">
+                  <td colSpan={12} className={`px-4 py-10 text-center ${textMuted}`}>
                     Carregando…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-4 py-10 text-center text-[#999]">
+                  <td colSpan={12} className={`px-4 py-10 text-center ${textMuted}`}>
                     Nenhuma linha encontrada.
                   </td>
                 </tr>
@@ -596,7 +596,7 @@ function AdminPage() {
                               updateClientInfo(l, "clientName", e.target.value);
                             }
                           }}
-                          className="w-36"
+                          className={`w-36 ${inputClr}`}
                         />
                       </td>
                       <td className="px-4 py-3">
@@ -606,10 +606,10 @@ function AdminPage() {
                             updateClientInfo(l, "groupName", v === "__none__" ? "" : v);
                           }}
                         >
-                          <SelectTrigger className="h-8 w-[140px]">
+                          <SelectTrigger className={`h-8 w-[140px] ${inputClr}`}>
                             <SelectValue placeholder="Sem fornecedor" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className={d ? "bg-[#242424] border-[#444] text-[#e0e0e0]" : ""}>
                             <SelectItem value="__none__">Sem fornecedor</SelectItem>
                             {(suppliers ?? []).map((s) => (
                               <SelectItem key={s.id} value={s.name}>
@@ -651,7 +651,7 @@ function AdminPage() {
                               updateTotal(l, v);
                             }
                           }}
-                          className="w-20"
+                          className={`w-20 ${inputClr}`}
                         />
                       </td>
                       <td className="px-4 py-3">
@@ -672,12 +672,12 @@ function AdminPage() {
                                 e.target.value = "";
                               }
                             }}
-                            className="w-16"
+                            className={`w-16 ${inputClr}`}
                           />
                           {(l.bonusGb ?? 0) > 0 && (
                             <button
                               onClick={() => resetBonus(l)}
-                              className="rounded-md border border-[#ddd] px-1.5 py-1 text-xs text-[#666] hover:bg-[#f3f3f3]"
+                              className={`rounded-md border ${d ? "border-[#555]" : "border-[#ddd]"} px-1.5 py-1 text-xs ${textSub} ${hoverBg}`}
                               title="Zerar GB extras"
                             >
                               ×
@@ -698,7 +698,7 @@ function AdminPage() {
                               updateCycleDays(l, "closingDay", v);
                             }
                           }}
-                          className="w-16"
+                          className={`w-16 ${inputClr}`}
                         />
                       </td>
                       <td className="px-4 py-3">
@@ -714,7 +714,7 @@ function AdminPage() {
                               updateCycleDays(l, "renewalDay", v);
                             }
                           }}
-                          className="w-16"
+                          className={`w-16 ${inputClr}`}
                         />
                       </td>
                       <td className="px-4 py-3">
@@ -738,7 +738,7 @@ function AdminPage() {
                               updateThreshold(l, v);
                             }
                           }}
-                          className="w-16"
+                          className={`w-16 ${inputClr}`}
                         />
                       </td>
                       <td className="px-4 py-3">
@@ -747,10 +747,10 @@ function AdminPage() {
                             value={l.status}
                             onValueChange={(v) => updateStatus(l, v as ClientLine["status"])}
                           >
-                            <SelectTrigger className="h-8 w-[150px]">
+                            <SelectTrigger className={`h-8 w-[150px] ${inputClr}`}>
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className={d ? "bg-[#242424] border-[#444] text-[#e0e0e0]" : ""}>
                               {(Object.keys(STATUS_LABELS) as ClientLine["status"][]).map((s) => (
                                 <SelectItem key={s} value={s}>
                                   {STATUS_LABELS[s]}
@@ -770,7 +770,7 @@ function AdminPage() {
                               Portal
                             </a>
                           ) : (
-                            <span className="text-xs text-[#bbb]" title="Defina vivo_portal_url na linha">
+                            <span className={`text-xs ${d ? "text-[#888]" : "text-[#bbb]"}`} title="Defina vivo_portal_url na linha">
                               sem link
                             </span>
                           )}
@@ -780,7 +780,7 @@ function AdminPage() {
                                 setPwdModal({ line: l });
                                 setNewPassword("");
                               }}
-                              className="flex items-center gap-1 rounded-md border border-[#888] px-2 py-1 text-xs font-medium text-[#555] hover:bg-[#f3f3f3]"
+                              className={`flex items-center gap-1 rounded-md border ${d ? "border-[#888]" : "border-[#660099]"} px-2 py-1 text-xs font-medium ${d ? "text-[#ccc]" : "text-[#660099]"} ${hoverBg}`}
                               title="Trocar senha do usuário"
                             >
                               <Lock className="h-3.5 w-3.5" />
@@ -820,13 +820,13 @@ function AdminPage() {
               Linha: <strong>{pwdModal.line.number}</strong> · Cliente: {pwdModal.line.clientName}
             </p>
             <div className="mt-4">
-              <Label className="text-[#555]">Nova senha</Label>
+              <Label className={textSub}>Nova senha</Label>
               <Input
                 type="text"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Mínimo 6 caracteres"
-                className="mt-1"
+                className={`mt-1 ${inputClr}`}
                 autoFocus
               />
             </div>
