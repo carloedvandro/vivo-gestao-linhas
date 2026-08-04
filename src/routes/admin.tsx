@@ -630,6 +630,7 @@ function AdminPage() {
   const totalRepasseVivo = allLines.reduce((s, l) => s + (l.vivoRepass ?? 0), 0);
   const totalRepasseFornec = allLines.reduce((s, l) => s + (l.repass ?? 0), 0);
   const lucroLiquido = totalRecebido - totalRepasseVivo - totalRepasseFornec;
+  const linhasSemCobranca = allLines.filter(l => l.monthlyValue == null || l.monthlyValue === 0);
 
   const fornecedores = (suppliers ?? []).map(s => {
     const linhasForn = allLines.filter(l => l.groupName === s.name);
@@ -770,6 +771,7 @@ function AdminPage() {
               <Card className={`${bgCard} ${borderClr}`}><CardHeader className="pb-2"><CardTitle className={`text-sm ${textMuted}`}>Repasse Vivo</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-[#F97316]">{fmt(totalRepasseVivo)}</div></CardContent></Card>
               <Card className={`${bgCard} ${borderClr}`}><CardHeader className="pb-2"><CardTitle className={`text-sm ${textMuted}`}>Repasse Fornec.</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-[#F97316]">{fmt(totalRepasseFornec)}</div></CardContent></Card>
               <Card className={`${bgCard} ${borderClr}`}><CardHeader className="pb-2"><CardTitle className={`text-sm ${textMuted}`}>Lucro Liquido</CardTitle></CardHeader><CardContent><div className={`text-2xl font-bold ${lucroLiquido >= 0 ? "text-[#16A34A]" : "text-[#DC2626]"}`}>{fmt(lucroLiquido)}</div><div className={`text-xs ${textMuted}`}>recebido - repasses</div></CardContent></Card>
+              <Card className={`${bgCard} ${borderClr}`}><CardHeader className="pb-2"><CardTitle className={`text-sm ${textMuted}`}>Linhas sem cobrança</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-[#888]">{linhasSemCobranca.length}</div><div className={`text-xs ${textMuted}`}>particulares / sem valor</div></CardContent></Card>
             </div>
 
             <h2 className={`mb-3 text-lg font-bold ${textMain}`}>Resumo por Fornecedor</h2>
